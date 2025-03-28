@@ -30,12 +30,6 @@ export default function DesignPage() {
   useEffect(() => {
     console.log('DesignPage useEffect running, apiCallMade:', apiCallMade.current);
     
-    // Skip if we've already made the API call
-    if (apiCallMade.current) {
-      console.log('Skipping duplicate API call');
-      return;
-    }
-    
     const controller = new AbortController();
     
     // Get the prompt from localStorage
@@ -53,12 +47,11 @@ export default function DesignPage() {
       setImageUrl(storedImageUrl);
       setLoading(false);
       apiCallMade.current = true; // Mark as handled so we don't regenerate
-    } else {
+    } else if (userId) {
+      // Only generate if we have a userId and haven't made the API call already
+      console.log('Making API call to generate image');
+      generateImage(storedPrompt, controller.signal);
       apiCallMade.current = true;
-      // Only generate if we have a userId
-      if (userId) {
-        generateImage(storedPrompt, controller.signal);
-      }
     }
     
     // Cleanup function
@@ -66,7 +59,7 @@ export default function DesignPage() {
       console.log('DesignPage cleanup running');
       controller.abort();
     };
-  }, [userId]);
+  }, [userId, router]);
 
   const generateImage = async (promptText: string, signal?: AbortSignal, forceRegenerate: boolean = false) => {
     // Don't regenerate if we're already loading
@@ -76,6 +69,7 @@ export default function DesignPage() {
     setError('');
 
     try {
+      console.log('Calling backend API to generate image...');
       // Call the backend API to generate the image
       const response = await fetch('http://localhost:3001/api/generate-image', {
         method: 'POST',
@@ -100,6 +94,7 @@ export default function DesignPage() {
       }
 
       const data = await response.json();
+      console.log('Image generated successfully:', data.imageUrl);
       setImageUrl(data.imageUrl);
       
       // Store the imageUrl in localStorage to use it on the checkout page

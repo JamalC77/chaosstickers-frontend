@@ -19,11 +19,15 @@ export default function Home() {
     setIsLoading(true);
     
     try {
+      console.log('Storing prompt in localStorage:', prompt);
       // Store the prompt in localStorage to use it on the design page
       localStorage.setItem('userPrompt', prompt);
       
       // Clear any previously generated image from localStorage
       localStorage.removeItem('generatedImageUrl');
+      
+      // Add a small delay before navigating to ensure localStorage updates
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Navigate to the design page
       router.push('/design');
