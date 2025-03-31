@@ -58,7 +58,7 @@ export default function Home() {
               />
             </div>
             <p className="text-xl font-medium text-gray-800">
-              Let your imagination run wild & create <span className="font-bold text-purple-800">magical</span> sticker art!
+              Let your imagination run wild & embrace the <span className="font-bold text-purple-800">chaos</span>!
             </p>
           </div>
 

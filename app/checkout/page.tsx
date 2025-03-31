@@ -89,7 +89,8 @@ export default function CheckoutPage() {
   const handleOrderSuccess = async (paymentId: string) => {
     try {
       // Call the backend API to create an order
-      const response = await fetch('http://localhost:3001/api/order', {
+      // For testing purposes, we're using the mock order endpoint
+      const response = await fetch('http://localhost:3001/api/order/test-mock', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
