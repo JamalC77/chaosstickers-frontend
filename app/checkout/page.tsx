@@ -21,6 +21,9 @@ export default function CheckoutPage() {
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [clientSecret, setClientSecret] = useState('');
+  const [hasRemovedBackground, setHasRemovedBackground] = useState(false);
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState<ShippingForm>({
     firstName: '',
     lastName: '',
@@ -44,6 +47,16 @@ export default function CheckoutPage() {
     }
 
     setImageUrl(storedImageUrl);
+    
+    // Check if background has been removed
+    const storedHasRemovedBg = localStorage.getItem('hasRemovedBackground') === 'true';
+    setHasRemovedBackground(storedHasRemovedBg);
+
+    // Get image ID from localStorage
+    // const storedImageId = localStorage.getItem('generatedImageId');
+    // if (storedImageId) {
+    //   setImageId(storedImageId);
+    // }
   }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -66,7 +79,11 @@ export default function CheckoutPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          items: [{ imageUrl, quantity: 1 }],
+          items: [{ 
+            imageUrl, 
+            quantity: 1,
+            removeBackground: hasRemovedBackground
+          }],
           userId: 1, // For demo purposes, we're using a fixed userId
         }),
       });
@@ -110,6 +127,7 @@ export default function CheckoutPage() {
             zip: formData.zip,
           },
           selectedImageUrl: imageUrl,
+          hasRemovedBackground: hasRemovedBackground,
           userId: 1, // For demo purposes, we're using a fixed userId
         }),
       });
@@ -126,6 +144,71 @@ export default function CheckoutPage() {
     }
   };
 
+  const handleRemoveBackground = async () => {
+    console.log('handleRemoveBackground function called');
+    setError(''); // Clear previous errors
+
+    // Check for imageUrl *inside* the handler
+    if (!imageUrl) {
+      console.error('Image URL is missing, cannot remove background.');
+      setError('Cannot remove background without a valid image URL.');
+      return; // Exit if no imageUrl
+    }
+
+    console.log('Proceeding with background removal, imageUrl:', imageUrl);
+    setIsRemovingBackground(true);
+    
+    try {
+      // Background removal logic - no separate payment needed now
+      console.log('Calling background removal API...');
+      // Process the background removal
+      const bgResponse = await fetch('http://localhost:3001/api/image/remove-background', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageUrl }),
+      });
+
+      console.log('Background removal API response status:', bgResponse.status);
+      if (!bgResponse.ok) {
+        throw new Error(`Failed to remove background. Status: ${bgResponse.status}`);
+      }
+
+      const bgData = await bgResponse.json();
+      console.log('Background removal successful:', bgData);
+      
+      // Update the image URL with the no-background version
+      setImageUrl(bgData.imageUrl);
+      localStorage.setItem('generatedImageUrl', bgData.imageUrl);
+      
+      // Set background removal flag
+      setHasRemovedBackground(true);
+      localStorage.setItem('hasRemovedBackground', 'true');
+      
+    } catch (err) {
+      console.error('Error in background removal process:', err);
+      setError('Failed to remove background. Please try again.');
+    } finally {
+      setIsRemovingBackground(false);
+    }
+  };
+
+  // Calculate total price
+  const basePrice = 4.00; // Updated base price
+  const backgroundRemovalCost = 2.00; // Updated background removal cost
+  const shippingCost = 4.69; // Added shipping cost
+  const backgroundRemovalPrice = hasRemovedBackground ? backgroundRemovalCost : 0.00;
+  const totalPrice = basePrice + backgroundRemovalPrice + shippingCost; // Updated total price calculation
+
+  // Debug logs for state
+  console.log('[Render State]', {
+    hasRemovedBackground,
+    isRemovingBackground,
+    imageUrl,
+    isDisabled: isRemovingBackground || !imageUrl
+  });
+
   return (
     <main className="min-h-screen flex flex-col items-center p-6">
       <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
@@ -139,7 +222,7 @@ export default function CheckoutPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Product Preview */}
-          <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4">
+          <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10">
             <h2 className="text-2xl font-bold text-purple-800">Your Amazing Sticker</h2>
             <div className="relative h-[300px] w-full border-2 border-purple-200/50 rounded-lg overflow-hidden bg-white/50 backdrop-blur-sm">
               {imageUrl && (
@@ -152,19 +235,40 @@ export default function CheckoutPage() {
                 />
               )}
             </div>
+
+            {hasRemovedBackground && (
+              <div className="text-center py-2 px-4 bg-green-100 text-green-800 rounded-lg mt-4">
+                Background successfully removed! ✅
+              </div>
+            )}
+
+            {error && (
+              <div className="text-center py-2 px-4 bg-red-100 text-red-800 rounded-lg mt-4">
+                {error}
+              </div>
+            )}
+            
             <div className="border-t border-purple-200/50 pt-4">
               <h3 className="font-bold text-xl text-purple-800">Order Summary</h3>
               <div className="flex justify-between mt-3 text-lg">
                 <span>Custom Sticker</span>
-                <span className="font-medium">$10.00</span>
+                <span className="font-medium">${basePrice.toFixed(2)}</span>
               </div>
+              
+              {hasRemovedBackground && (
+                <div className="flex justify-between mt-2 text-lg">
+                  <span>Background Removal</span>
+                  <span className="font-medium">${backgroundRemovalPrice.toFixed(2)}</span>
+                </div>
+              )}
+              
               <div className="flex justify-between mt-2 text-lg">
                 <span>Shipping</span>
-                <span className="font-medium text-green-600">Free</span>
+                <span className="font-medium">${shippingCost.toFixed(2)}</span>
               </div>
               <div className="flex justify-between mt-3 text-xl font-bold">
                 <span>Total</span>
-                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">$10.00</span>
+                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">${totalPrice.toFixed(2)}</span>
               </div>
             </div>
           </div>

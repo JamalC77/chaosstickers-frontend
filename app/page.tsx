@@ -52,8 +52,8 @@ export default function Home() {
               <Image 
                 src="/a894840a-2690-4f1f-9cfd-5b0c1c3e6285.png" 
                 alt="ChaosStickers Logo" 
-                width={240} 
-                height={240}
+                width={350} 
+                height={200}
                 className="mb-2" 
               />
             </div>

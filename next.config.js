@@ -2,7 +2,7 @@
 const nextConfig = {
   /* config options here */
   images: {
-    domains: ['oaidalleapiprodscus.blob.core.windows.net'],
+    domains: ['oaidalleapiprodscus.blob.core.windows.net', 'i.ibb.co'],
   },
   reactStrictMode: false,
 };

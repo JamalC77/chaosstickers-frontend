@@ -10,6 +10,7 @@ export default function DesignPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
+  const [imageId, setImageId] = useState<string | null>(null);
   const router = useRouter();
   const apiCallMade = useRef(false);
 
@@ -43,10 +44,16 @@ export default function DesignPage() {
     
     // Check if we already have an image URL for this prompt
     const storedImageUrl = localStorage.getItem('generatedImageUrl');
+    const storedImageId = localStorage.getItem('generatedImageId');
+    
     if (storedImageUrl) {
       setImageUrl(storedImageUrl);
       setLoading(false);
       apiCallMade.current = true; // Mark as handled so we don't regenerate
+      
+      if (storedImageId) {
+        setImageId(storedImageId);
+      }
     } else if (userId) {
       // Only generate if we have a userId and haven't made the API call already
       console.log('Making API call to generate image');
@@ -94,8 +101,19 @@ export default function DesignPage() {
       }
 
       const data = await response.json();
-      console.log('Image generated successfully:', data.imageUrl);
+      console.log('Image generated successfully (full response):', data);
       setImageUrl(data.imageUrl);
+      
+      // Save the image ID if available
+      if (data.id) {
+        console.log('Image ID received:', data.id);
+        setImageId(data.id);
+        console.log('Attempting to save imageId to localStorage:', data.id);
+        localStorage.setItem('generatedImageId', data.id);
+        console.log('localStorage after setting imageId:', localStorage.getItem('generatedImageId'));
+      } else {
+        console.warn('No image ID (data.id) received from backend in response:', data);
+      }
       
       // Store the imageUrl in localStorage to use it on the checkout page
       localStorage.setItem('generatedImageUrl', data.imageUrl);
@@ -116,8 +134,11 @@ export default function DesignPage() {
   const handleRegenerate = () => {
     // Clear the stored image URL from localStorage
     localStorage.removeItem('generatedImageUrl');
+    localStorage.removeItem('generatedImageId');
+    localStorage.removeItem('hasRemovedBackground');
     apiCallMade.current = false;
     setImageUrl(''); // Clear the current image
+    setImageId(null); // Clear the image ID
     generateImage(prompt, undefined, true); // Force regeneration
   };
 
@@ -165,19 +186,21 @@ export default function DesignPage() {
               )}
             </div>
             
-            <div className="flex flex-col md:flex-row gap-4">
-              <button
-                onClick={handleRegenerate}
-                className="py-3 px-6 bg-white/70 backdrop-blur-sm text-purple-800 font-bold rounded-xl hover:bg-white/90 transition-all duration-300 hover:shadow-lg flex-1 border border-purple-200"
-              >
-                Recreate Magic ✨
-              </button>
-              <button
-                onClick={handleProceedToCheckout}
-                className="art-button py-3 px-6 rounded-xl text-white font-bold focus:outline-none flex-1"
-              >
-                <span className="relative z-10">Continue to Checkout</span>
-              </button>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-row gap-4">
+                <button
+                  onClick={handleRegenerate}
+                  className="py-3 px-6 bg-white/70 backdrop-blur-sm text-purple-800 font-bold rounded-xl hover:bg-white/90 transition-all duration-300 hover:shadow-lg flex-1 border border-purple-200"
+                >
+                  Recreate Magic ✨
+                </button>
+                <button
+                  onClick={handleProceedToCheckout}
+                  className="art-button py-3 px-6 rounded-xl text-white font-bold focus:outline-none flex-1"
+                >
+                  <span className="relative z-10">Continue to Checkout</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
