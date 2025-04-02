@@ -1,8 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+// Import Stripe
+import { loadStripe } from '@stripe/stripe-js';
+// Remove CardElement and useElements, keep useStripe and Elements
+import { Elements, useStripe } from '@stripe/react-stripe-js';
+
+// Load Stripe with your publishable key (replace with your actual key, preferably from env vars)
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'YOUR_STRIPE_PUBLISHABLE_KEY'); // Replace placeholder or use env variable
 
 interface ShippingForm {
   firstName: string;
@@ -17,13 +24,17 @@ interface ShippingForm {
   zip: string;
 }
 
-export default function CheckoutPage() {
+// Define the CheckoutForm component that uses Stripe hooks
+function CheckoutForm() {
+  const stripe = useStripe();
+  // Remove useElements hook
+  const router = useRouter();
   const [imageUrl, setImageUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [clientSecret, setClientSecret] = useState('');
   const [hasRemovedBackground, setHasRemovedBackground] = useState(false);
-  const [isRemovingBackground, setIsRemovingBackground] = useState(false);
-  const [error, setError] = useState('');
+  const [isRemovingBackground, setIsRemovingBackground] = useState(false); // Keep background removal logic
+  const [error, setError] = useState(''); // General error state
+  const [quantity, setQuantity] = useState(1); // Added quantity state, default 1
   const [formData, setFormData] = useState<ShippingForm>({
     firstName: '',
     lastName: '',
@@ -36,27 +47,16 @@ export default function CheckoutPage() {
     city: '',
     zip: '',
   });
-  const router = useRouter();
 
   useEffect(() => {
-    // Get the image URL from localStorage
     const storedImageUrl = localStorage.getItem('generatedImageUrl');
     if (!storedImageUrl) {
       router.push('/');
       return;
     }
-
     setImageUrl(storedImageUrl);
-    
-    // Check if background has been removed
     const storedHasRemovedBg = localStorage.getItem('hasRemovedBackground') === 'true';
     setHasRemovedBackground(storedHasRemovedBg);
-
-    // Get image ID from localStorage
-    // const storedImageId = localStorage.getItem('generatedImageId');
-    // if (storedImageId) {
-    //   setImageId(storedImageId);
-    // }
   }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -67,54 +67,75 @@ export default function CheckoutPage() {
     }));
   };
 
+  // --- Dynamic Price Calculation Logic ---
+  const { stickerPricePerItem, discountPercentage, stickerSubtotal, backgroundRemovalSubtotal, subtotalBeforeShipping, shippingCost, totalPrice, isShippingFree, amountNeededForFreeShipping } = useMemo(() => {
+    const basePrice = 3.50;
+    const backgroundRemovalCost = 2.00;
+    const standardShippingCost = 4.69;
+    const freeShippingThreshold = 20.00;
+
+    let currentStickerPrice = basePrice;
+    let discountPercent = 0;
+    if (quantity >= 5) {
+        currentStickerPrice = basePrice * 0.8; // 20% discount
+        discountPercent = 20;
+    } else if (quantity >= 2) {
+        currentStickerPrice = basePrice * 0.9; // 10% discount
+        discountPercent = 10;
+    }
+
+    const stickersTotal = currentStickerPrice * quantity;
+    const bgRemovalTotal = hasRemovedBackground ? backgroundRemovalCost * quantity : 0;
+    const currentSubtotal = stickersTotal + bgRemovalTotal;
+
+    const shippingIsFree = currentSubtotal >= freeShippingThreshold;
+    const currentShippingCost = shippingIsFree ? 0 : standardShippingCost;
+    const currentTotalPrice = currentSubtotal + currentShippingCost;
+
+    const neededForFreeShipping = shippingIsFree ? 0 : freeShippingThreshold - currentSubtotal;
+
+    return {
+      stickerPricePerItem: currentStickerPrice,
+      discountPercentage: discountPercent,
+      stickerSubtotal: stickersTotal,
+      backgroundRemovalSubtotal: bgRemovalTotal,
+      subtotalBeforeShipping: currentSubtotal,
+      shippingCost: currentShippingCost,
+      totalPrice: currentTotalPrice,
+      isShippingFree: shippingIsFree,
+      amountNeededForFreeShipping: neededForFreeShipping > 0 ? neededForFreeShipping : 0,
+    };
+  }, [quantity, hasRemovedBackground]);
+  // --- End Price Calculation ---
+
+  // Update handleSubmit for Stripe Checkout
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
+
+    // Only check if stripe has loaded
+    if (!stripe) {
+      setError('Stripe is not ready. Please wait a moment and try again.');
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Call the backend API to create a payment intent
-      const response = await fetch('http://localhost:3001/api/payment/create-payment-intent', {
+      // 1. Create Checkout Session on the backend
+      const checkoutSessionResponse = await fetch('http://localhost:3001/api/payment/create-checkout-session', { // Updated endpoint
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        // Send shipping details and item info (including quantity)
         body: JSON.stringify({
-          items: [{ 
-            imageUrl, 
-            quantity: 1,
+          items: [{
+            imageUrl,
+            quantity: quantity, // Send the current quantity
             removeBackground: hasRemovedBackground
           }],
-          userId: 1, // For demo purposes, we're using a fixed userId
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create payment intent');
-      }
-
-      const data = await response.json();
-      setClientSecret(data.clientSecret);
-
-      // For demo purposes, let's simulate a successful payment
-      handleOrderSuccess('demo-payment-id');
-    } catch (error) {
-      console.error('Error creating payment intent:', error);
-      setLoading(false);
-    }
-  };
-
-  const handleOrderSuccess = async (paymentId: string) => {
-    try {
-      // Call the backend API to create an order
-      // For testing purposes, we're using the mock order endpoint
-      const response = await fetch('http://localhost:3001/api/order/test-mock', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          paymentId,
-          shippingAddress: {
+          shippingDetails: { // Match backend expectation for shipping details
             first_name: formData.firstName,
             last_name: formData.lastName,
             email: formData.email,
@@ -126,66 +147,73 @@ export default function CheckoutPage() {
             city: formData.city,
             zip: formData.zip,
           },
-          selectedImageUrl: imageUrl,
-          hasRemovedBackground: hasRemovedBackground,
-          userId: 1, // For demo purposes, we're using a fixed userId
+          userId: 1, // Keep demo userId
+          // Backend defines success/cancel URLs now
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create order');
+      if (!checkoutSessionResponse.ok) {
+        const errorData = await checkoutSessionResponse.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
       }
 
-      // Navigate to the confirmation page
-      router.push('/confirmation');
-    } catch (error) {
-      console.error('Error creating order:', error);
+      const { sessionId } = await checkoutSessionResponse.json(); // Expect sessionId
+
+      if (!sessionId) {
+        throw new Error('Session ID not received from server.');
+      }
+
+      // 2. Redirect to Stripe Checkout
+      const { error: stripeError } = await stripe.redirectToCheckout({
+        sessionId: sessionId,
+      });
+
+      // If `redirectToCheckout` fails due to a browser issue (e.g., popup blocker),
+      // it will return an error. You should display that error to the user.
+      if (stripeError) {
+        console.error('Stripe redirection error:', stripeError);
+        setError(stripeError.message || 'Failed to redirect to Stripe Checkout.');
+        setLoading(false); // Stop loading since redirection failed
+        return;
+      }
+
+      // If redirection is successful, the user is sent to Stripe.
+      // You don't need to handle success here; Stripe redirects to your successUrl.
+
+    } catch (error: any) {
+      console.error('Error during checkout process:', error);
+      setError(error.message || 'An unexpected error occurred during checkout.');
       setLoading(false);
     }
   };
 
+  // Keep handleRemoveBackground as is
   const handleRemoveBackground = async () => {
     console.log('handleRemoveBackground function called');
-    setError(''); // Clear previous errors
-
-    // Check for imageUrl *inside* the handler
+    setError('');
     if (!imageUrl) {
       console.error('Image URL is missing, cannot remove background.');
       setError('Cannot remove background without a valid image URL.');
-      return; // Exit if no imageUrl
+      return;
     }
-
     console.log('Proceeding with background removal, imageUrl:', imageUrl);
     setIsRemovingBackground(true);
-    
     try {
-      // Background removal logic - no separate payment needed now
-      console.log('Calling background removal API...');
-      // Process the background removal
       const bgResponse = await fetch('http://localhost:3001/api/image/remove-background', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl }),
       });
-
       console.log('Background removal API response status:', bgResponse.status);
       if (!bgResponse.ok) {
         throw new Error(`Failed to remove background. Status: ${bgResponse.status}`);
       }
-
       const bgData = await bgResponse.json();
       console.log('Background removal successful:', bgData);
-      
-      // Update the image URL with the no-background version
       setImageUrl(bgData.imageUrl);
       localStorage.setItem('generatedImageUrl', bgData.imageUrl);
-      
-      // Set background removal flag
       setHasRemovedBackground(true);
       localStorage.setItem('hasRemovedBackground', 'true');
-      
     } catch (err) {
       console.error('Error in background removal process:', err);
       setError('Failed to remove background. Please try again.');
@@ -194,89 +222,164 @@ export default function CheckoutPage() {
     }
   };
 
-  // Calculate total price
-  const basePrice = 4.00; // Updated base price
-  const backgroundRemovalCost = 2.00; // Updated background removal cost
-  const shippingCost = 4.69; // Added shipping cost
-  const backgroundRemovalPrice = hasRemovedBackground ? backgroundRemovalCost : 0.00;
-  const totalPrice = basePrice + backgroundRemovalPrice + shippingCost; // Updated total price calculation
-
-  // Debug logs for state
-  console.log('[Render State]', {
-    hasRemovedBackground,
-    isRemovingBackground,
-    imageUrl,
-    isDisabled: isRemovingBackground || !imageUrl
-  });
-
   return (
-    <main className="min-h-screen flex flex-col items-center p-6">
-      <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
-        <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob"></div>
-        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-yellow-300 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/3 w-96 h-96 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="w-full max-w-4xl z-10">
+      <h1 className="text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600">Complete Your Order</h1>
+      {/* Display general errors */}
+      {error && (
+        <div className="mb-4 text-center py-2 px-4 bg-red-100 text-red-800 rounded-lg">
+          {error}
+        </div>
+      )}
 
-      <div className="w-full max-w-4xl z-10">
-        <h1 className="text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600">Complete Your Order</h1>
+      {/* Changed grid layout to 3 columns on medium screens */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Product Preview */}
-          <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10">
-            <h2 className="text-2xl font-bold text-purple-800">Your Amazing Sticker</h2>
-            <div className="relative h-[300px] w-full border-2 border-purple-200/50 rounded-lg overflow-hidden bg-white/50 backdrop-blur-sm">
-              {imageUrl && (
-                <Image
-                  src={imageUrl}
-                  alt="Your sticker design"
-                  fill
-                  style={{ objectFit: 'contain' }}
-                  priority
-                />
-              )}
-            </div>
+        {/* --- Column 1: Pricing Tiers --- */}
+        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10 md:order-1 order-2">
+           {/* Moved Pricing Tiers Here */}
+           <h3 className="font-bold text-lg text-purple-800 mb-2 text-center">Pricing Deals! ✨</h3>
+           <div className="space-y-2 text-sm">
+             <div className={`p-2 rounded-lg border transition-all ${quantity === 1 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'}`}>
+               <span className="font-semibold">🛍️ 1 Sticker:</span> $3.50 ea + $4.69 Shipping
+             </div>
+             <div className={`p-2 rounded-lg border transition-all ${quantity >= 2 && quantity <= 4 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'}`}>
+               <span className="font-semibold">🎉 2-4 Stickers:</span> $3.15 ea (10% off!) + $4.69 Shipping
+             </div>
+             <div className={`p-2 rounded-lg border transition-all ${quantity >= 5 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'}`}>
+               <span className="font-semibold">🚀 5+ Stickers:</span> $2.80 ea (20% off!) + $4.69 Shipping
+             </div>
+             <div className={`p-2 rounded-lg border font-semibold transition-all ${isShippingFree ? 'bg-green-100 border-green-300 scale-105' : 'bg-white/50 border-white/60'}`}>
+                💰 Spend $20+ = FREE Shipping!
+             </div>
+           </div>
+        </div>
+        {/* --- End Column 1 --- */}
 
-            {hasRemovedBackground && (
-              <div className="text-center py-2 px-4 bg-green-100 text-green-800 rounded-lg mt-4">
-                Background successfully removed! ✅
-              </div>
+        {/* --- Column 2: Product Preview & Order Summary --- */}
+        {/* Grouped existing left column content here */}
+        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10 md:order-2 order-1">
+          {/* Product Preview */}          
+          <h2 className="text-2xl font-bold text-purple-800">Your Amazing Sticker</h2>
+          <div className="relative h-[300px] w-full border-2 border-purple-200/50 rounded-lg overflow-hidden bg-white/50 backdrop-blur-sm">
+            {imageUrl ? (
+              <Image
+                src={imageUrl}
+                alt="Your sticker design"
+                fill
+                style={{ objectFit: 'contain' }}
+                priority
+              />
+            ) : (
+               <div className="flex items-center justify-center h-full text-purple-500">Loading Image...</div>
             )}
-
-            {error && (
-              <div className="text-center py-2 px-4 bg-red-100 text-red-800 rounded-lg mt-4">
-                {error}
-              </div>
-            )}
-            
-            <div className="border-t border-purple-200/50 pt-4">
-              <h3 className="font-bold text-xl text-purple-800">Order Summary</h3>
-              <div className="flex justify-between mt-3 text-lg">
-                <span>Custom Sticker</span>
-                <span className="font-medium">${basePrice.toFixed(2)}</span>
-              </div>
-              
-              {hasRemovedBackground && (
-                <div className="flex justify-between mt-2 text-lg">
-                  <span>Background Removal</span>
-                  <span className="font-medium">${backgroundRemovalPrice.toFixed(2)}</span>
-                </div>
-              )}
-              
-              <div className="flex justify-between mt-2 text-lg">
-                <span>Shipping</span>
-                <span className="font-medium">${shippingCost.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between mt-3 text-xl font-bold">
-                <span>Total</span>
-                <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">${totalPrice.toFixed(2)}</span>
-              </div>
-            </div>
           </div>
 
-          {/* Shipping Form */}
-          <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60">
+          {/* Quantity Selector */}
+          <div className="flex items-center justify-center space-x-3">
+            <button
+              onClick={() => setQuantity(q => Math.max(1, q - 1))}
+              className="px-3 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={quantity <= 1 || loading}
+              aria-label="Decrease quantity"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                // Update only if it's a valid number >= 1
+                if (!isNaN(val) && val >= 1) {
+                  setQuantity(val);
+                } else if (e.target.value === '') {
+                  // Allow empty input temporarily, maybe default to 1 on blur if needed
+                  // Or handle it based on desired UX (e.g., setQuantity(1) if empty)
+                   setQuantity(1); // Set to 1 if cleared
+                }
+              }}
+              className="text-xl font-medium w-16 text-center border border-purple-300 rounded-md p-1 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              aria-label="Quantity"
+              disabled={loading}
+            />
+            <button
+              onClick={() => setQuantity(q => q + 1)}
+              className="px-3 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+              disabled={loading} // You might add an upper limit later
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Background Removal Status/Error */}
+          {isRemovingBackground && (
+            <div className="text-center py-2 px-4 bg-blue-100 text-blue-800 rounded-lg mt-4">
+              Removing background... Please wait.
+            </div>
+          )}
+          {hasRemovedBackground && !isRemovingBackground && (
+            <div className="text-center py-2 px-4 bg-green-100 text-green-800 rounded-lg mt-4">
+              Background successfully removed! ✅
+            </div>
+          )}
+          {/* Display background removal errors specifically if needed, or rely on general error */}
+
+          <div className="border-t border-purple-200/50 pt-4">
+            <h3 className="font-bold text-xl text-purple-800">Order Summary</h3>
+            {/* Dynamic Order Summary */}
+            <div className="flex justify-between mt-3 text-lg">
+              <span>Custom Sticker (x{quantity})</span>
+              <span className="font-medium">${stickerSubtotal.toFixed(2)}</span>
+            </div>
+            {discountPercentage > 0 && (
+              <div className="flex justify-between mt-1 text-sm text-green-700">
+                <span>({discountPercentage}% discount applied)</span>
+                <span>@ ${stickerPricePerItem.toFixed(2)} ea</span>
+              </div>
+            )}
+            {hasRemovedBackground && (
+              <div className="flex justify-between mt-2 text-lg">
+                <span>Background Removal (x{quantity})</span>
+                <span className="font-medium">${backgroundRemovalSubtotal.toFixed(2)}</span>
+              </div>
+            )}
+             <div className="flex justify-between mt-2 text-lg">
+               <span>Subtotal</span>
+               <span className="font-medium">${subtotalBeforeShipping.toFixed(2)}</span>
+             </div>
+            <div className="flex justify-between mt-2 text-lg">
+              <span>Shipping</span>
+              {isShippingFree ? (
+                <span className="font-medium text-green-700">FREE!</span>
+              ) : (
+                <span className="font-medium">${shippingCost.toFixed(2)}</span>
+              )}
+            </div>
+            {!isShippingFree && amountNeededForFreeShipping > 0 && (
+              <div className="text-sm text-center mt-1 text-purple-700 bg-purple-100 py-1 px-2 rounded">
+                Add ${amountNeededForFreeShipping.toFixed(2)} more for FREE shipping!
+              </div>
+            )}
+            <div className="flex justify-between mt-3 text-xl font-bold border-t border-purple-200/50 pt-2">
+              <span>Total</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
+                ${totalPrice.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+        {/* --- End Column 2 --- */}
+
+        {/* --- Column 3: Shipping and Payment Form --- */}
+        {/* Added order class for consistency */} 
+        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 md:order-3 order-3">
+          <form onSubmit={handleSubmit} className="space-y-4">
+             {/* Keep existing shipping fields */}            
             <h2 className="text-2xl font-bold mb-4 text-purple-800">Shipping Information</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+             {/* ... (firstName, lastName, email, phone, country, region, address1, address2, city, zip inputs remain the same) ... */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-purple-900">
@@ -354,6 +457,7 @@ export default function CheckoutPage() {
                     <option value="US">United States</option>
                     <option value="CA">Canada</option>
                     <option value="GB">United Kingdom</option>
+                    {/* Add other countries as needed */}
                   </select>
                 </div>
                 <div>
@@ -432,29 +536,50 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="art-button w-full py-4 px-6 rounded-xl text-white font-bold focus:outline-none transition-all duration-300 mt-6"
-              >
-                <span className="relative z-10 flex items-center justify-center">
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </>
-                  ) : (
-                    'Complete Purchase ✨'
-                  )}
-                </span>
-              </button>
-            </form>
-          </div>
+            {/* Updated Submit Button */}
+            <button
+              type="submit"
+              disabled={loading || !stripe || isRemovingBackground}
+              className="art-button w-full py-4 px-6 rounded-xl text-white font-bold focus:outline-none transition-all duration-300 mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span className="relative z-10 flex items-center justify-center">
+                {loading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing Payment...
+                  </>
+                ) : (
+                  `Pay $${totalPrice.toFixed(2)} ✨` // Update button text
+                )}
+              </span>
+            </button>
+          </form>
         </div>
+        {/* --- End Column 3 --- */}
       </div>
+    </div>
+  );
+}
+
+
+// Main component wrapping the form with Elements provider
+export default function CheckoutPage() {
+  return (
+    <main className="min-h-screen flex flex-col items-center p-6 relative overflow-hidden">
+      {/* Background Blobs (keep as is) */}
+      <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob"></div>
+        <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-yellow-300 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/3 w-96 h-96 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-4000"></div>
+      </div>
+
+      {/* Wrap the form content with Elements */}
+      <Elements stripe={stripePromise}>
+         <CheckoutForm />
+      </Elements>
     </main>
   );
 } 

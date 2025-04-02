@@ -192,7 +192,7 @@ export default function DesignPage() {
                   onClick={handleRegenerate}
                   className="py-3 px-6 bg-white/70 backdrop-blur-sm text-purple-800 font-bold rounded-xl hover:bg-white/90 transition-all duration-300 hover:shadow-lg flex-1 border border-purple-200"
                 >
-                  Recreate Magic ✨
+                  Reimagine the Sticker? ✨
                 </button>
                 <button
                   onClick={handleProceedToCheckout}
