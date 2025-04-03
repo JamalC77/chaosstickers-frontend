@@ -147,11 +147,14 @@ export default function Home() {
                 className="mb-2" 
               />
             </div>
-            <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 mb-4">
-              Turn your ideas into real 3x4" stickers, delivered in 5-7 days! ✨
+            <p className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 mb-1">
+              Go from Idea to Real 3x4" Kiss-Cut Vinyl Sticker with just a few clicks!
+            </p>
+            <p className="text-lg font-bold text-gray-700 mb-4">
+            ✨ Shipped in 5-7 days! ✨
             </p>
             <p className="text-xl font-semibold text-gray-800">
-              Let your imagination run wild & embrace the <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">chaos</span>!
+              Your creativity, instantly transformed. Embrace the <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">chaos</span> of your imagination!
             </p>
           </div>
 
@@ -159,7 +162,7 @@ export default function Home() {
             <div className="relative group">
               <textarea
                 className="w-full p-4 bg-white/70 border-2 border-purple-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent min-h-[150px] resize-none shadow-md transition-all duration-300 group-hover:shadow-lg"
-                placeholder="Describe your wildest art ideas... (e.g., 'A magical fox with rainbow fur dancing under cosmic auroras')"
+                placeholder="Describe your wildest art ideas to turn into a sticker... (e.g., 'A magical fox with rainbow fur dancing under cosmic auroras')"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 required
