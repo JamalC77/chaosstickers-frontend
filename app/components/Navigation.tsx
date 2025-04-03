@@ -28,6 +28,16 @@ export default function Navigation() {
                 How It Works
               </Link>
             </li>
+            <li>
+              <Link href="/designs/purchased" className="text-gray-600 hover:text-blue-600 transition-colors">
+                My Designs
+              </Link>
+            </li>
+            <li>
+              <Link href="/designs/recent" className="text-gray-600 hover:text-blue-600 transition-colors">
+                Recent Designs
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>

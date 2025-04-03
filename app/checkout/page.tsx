@@ -68,31 +68,38 @@ function CheckoutForm() {
   };
 
   // --- Dynamic Price Calculation Logic ---
-  const { stickerPricePerItem, discountPercentage, stickerSubtotal, backgroundRemovalSubtotal, subtotalBeforeShipping, shippingCost, totalPrice, isShippingFree, amountNeededForFreeShipping } = useMemo(() => {
+  const {
+    stickerPricePerItem,
+    discountPercentage,
+    stickerSubtotal,
+    backgroundRemovalSubtotal,
+    subtotalBeforeShipping,
+    shippingCost,
+    totalPrice,
+    isShippingFree,
+  } = useMemo(() => {
     const basePrice = 3.50;
     const backgroundRemovalCost = 2.00;
     const standardShippingCost = 4.69;
-    const freeShippingThreshold = 20.00;
 
     let currentStickerPrice = basePrice;
     let discountPercent = 0;
     if (quantity >= 5) {
-        currentStickerPrice = basePrice * 0.8; // 20% discount
-        discountPercent = 20;
+      currentStickerPrice = basePrice * 0.8; // 20% discount
+      discountPercent = 20;
     } else if (quantity >= 2) {
-        currentStickerPrice = basePrice * 0.9; // 10% discount
-        discountPercent = 10;
+      currentStickerPrice = basePrice * 0.9; // 10% discount
+      discountPercent = 10;
     }
 
     const stickersTotal = currentStickerPrice * quantity;
     const bgRemovalTotal = hasRemovedBackground ? backgroundRemovalCost * quantity : 0;
     const currentSubtotal = stickersTotal + bgRemovalTotal;
 
-    const shippingIsFree = currentSubtotal >= freeShippingThreshold;
+    // Changed: Shipping is free if quantity is 10 or more
+    const shippingIsFree = quantity >= 10;
     const currentShippingCost = shippingIsFree ? 0 : standardShippingCost;
     const currentTotalPrice = currentSubtotal + currentShippingCost;
-
-    const neededForFreeShipping = shippingIsFree ? 0 : freeShippingThreshold - currentSubtotal;
 
     return {
       stickerPricePerItem: currentStickerPrice,
@@ -103,7 +110,6 @@ function CheckoutForm() {
       shippingCost: currentShippingCost,
       totalPrice: currentTotalPrice,
       isShippingFree: shippingIsFree,
-      amountNeededForFreeShipping: neededForFreeShipping > 0 ? neededForFreeShipping : 0,
     };
   }, [quantity, hasRemovedBackground]);
   // --- End Price Calculation ---
@@ -123,7 +129,7 @@ function CheckoutForm() {
 
     try {
       // 1. Create Checkout Session on the backend
-      const checkoutSessionResponse = await fetch('http://localhost:3001/api/payment/create-checkout-session', { // Updated endpoint
+      const checkoutSessionResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/payment/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +141,7 @@ function CheckoutForm() {
             quantity: quantity, // Send the current quantity
             removeBackground: hasRemovedBackground
           }],
-          shippingDetails: { // Match backend expectation for shipping details
+          shippingAddress: {
             first_name: formData.firstName,
             last_name: formData.lastName,
             email: formData.email,
@@ -147,8 +153,7 @@ function CheckoutForm() {
             city: formData.city,
             zip: formData.zip,
           },
-          userId: 1, // Keep demo userId
-          // Backend defines success/cancel URLs now
+          userId: 1,
         }),
       });
 
@@ -168,18 +173,12 @@ function CheckoutForm() {
         sessionId: sessionId,
       });
 
-      // If `redirectToCheckout` fails due to a browser issue (e.g., popup blocker),
-      // it will return an error. You should display that error to the user.
       if (stripeError) {
         console.error('Stripe redirection error:', stripeError);
         setError(stripeError.message || 'Failed to redirect to Stripe Checkout.');
-        setLoading(false); // Stop loading since redirection failed
+        setLoading(false);
         return;
       }
-
-      // If redirection is successful, the user is sent to Stripe.
-      // You don't need to handle success here; Stripe redirects to your successUrl.
-
     } catch (error: any) {
       console.error('Error during checkout process:', error);
       setError(error.message || 'An unexpected error occurred during checkout.');
@@ -199,7 +198,7 @@ function CheckoutForm() {
     console.log('Proceeding with background removal, imageUrl:', imageUrl);
     setIsRemovingBackground(true);
     try {
-      const bgResponse = await fetch('http://localhost:3001/api/image/remove-background', {
+      const bgResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/image/remove-background`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl }),
@@ -223,8 +222,10 @@ function CheckoutForm() {
   };
 
   return (
-    <div className="w-full max-w-4xl z-10">
-      <h1 className="text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600">Complete Your Order</h1>
+    <div className="w-full max-w-7xl z-10">
+      <h1 className="text-4xl font-extrabold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600">
+        Complete Your Order
+      </h1>
       {/* Display general errors */}
       {error && (
         <div className="mb-4 text-center py-2 px-4 bg-red-100 text-red-800 rounded-lg">
@@ -232,34 +233,46 @@ function CheckoutForm() {
         </div>
       )}
 
-      {/* Changed grid layout to 3 columns on medium screens */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-        {/* --- Column 1: Pricing Tiers --- */}
-        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10 md:order-1 order-2">
-           {/* Moved Pricing Tiers Here */}
-           <h3 className="font-bold text-lg text-purple-800 mb-2 text-center">Pricing Deals! ✨</h3>
-           <div className="space-y-2 text-sm">
-             <div className={`p-2 rounded-lg border transition-all ${quantity === 1 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'}`}>
-               <span className="font-semibold">🛍️ 1 Sticker:</span> $3.50 ea + $4.69 Shipping
-             </div>
-             <div className={`p-2 rounded-lg border transition-all ${quantity >= 2 && quantity <= 4 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'}`}>
-               <span className="font-semibold">🎉 2-4 Stickers:</span> $3.15 ea (10% off!) + $4.69 Shipping
-             </div>
-             <div className={`p-2 rounded-lg border transition-all ${quantity >= 5 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'}`}>
-               <span className="font-semibold">🚀 5+ Stickers:</span> $2.80 ea (20% off!) + $4.69 Shipping
-             </div>
-             <div className={`p-2 rounded-lg border font-semibold transition-all ${isShippingFree ? 'bg-green-100 border-green-300 scale-105' : 'bg-white/50 border-white/60'}`}>
-                💰 Spend $20+ = FREE Shipping!
-             </div>
-           </div>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-8">
+        {/* --- Column 1: Pricing Tiers (Span 1) --- */}
+        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10 md:order-1 order-2 md:col-span-1">
+          <h3 className="font-bold text-lg text-purple-800 mb-2 text-center">Pricing Deals! ✨</h3>
+          <ul className="space-y-2 text-sm">
+            <li
+              className={`p-2 rounded-lg border transition-all ${
+                quantity === 1 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'
+              }`}
+            >
+              <span className="font-semibold">🛍️ 1 Sticker:</span> $3.50 ea + $4.69 Shipping
+            </li>
+            <li
+              className={`p-2 rounded-lg border transition-all ${
+                quantity >= 2 && quantity <= 4 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'
+              }`}
+            >
+              <span className="font-semibold">🎉 2-4 Stickers:</span> $3.15 ea (10% off!) + $4.69 Shipping
+            </li>
+            <li
+              className={`p-2 rounded-lg border transition-all ${
+                quantity >= 5 && !isShippingFree ? 'bg-purple-100 border-purple-300 scale-105' : 'bg-white/50 border-white/60'
+              }`}
+            >
+              <span className="font-semibold">🚀 5-9 Stickers:</span> $2.80 ea (20% off!) + $4.69 Shipping
+            </li>
+            {/* Updated Free Shipping Tier */}
+            <li 
+              className={`p-2 rounded-lg border font-semibold transition-all ${ 
+                isShippingFree ? 'bg-green-100 border-green-300 scale-105' : 'bg-white/50 border-white/60' 
+              }`} 
+            >
+              <span className="font-semibold">🚚 10+ Stickers:</span> $2.80 ea (20% off!) + FREE Shipping!
+            </li>
+          </ul>
         </div>
         {/* --- End Column 1 --- */}
 
-        {/* --- Column 2: Product Preview & Order Summary --- */}
-        {/* Grouped existing left column content here */}
-        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10 md:order-2 order-1">
-          {/* Product Preview */}          
+        {/* --- Column 2: Product Preview & Order Summary (Span 2) --- */}
+        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 space-y-4 relative z-10 md:order-2 order-1 md:col-span-2">
           <h2 className="text-2xl font-bold text-purple-800">Your Amazing Sticker</h2>
           <div className="relative h-[300px] w-full border-2 border-purple-200/50 rounded-lg overflow-hidden bg-white/50 backdrop-blur-sm">
             {imageUrl ? (
@@ -271,14 +284,16 @@ function CheckoutForm() {
                 priority
               />
             ) : (
-               <div className="flex items-center justify-center h-full text-purple-500">Loading Image...</div>
+              <div className="flex items-center justify-center h-full text-purple-500">
+                Loading Image...
+              </div>
             )}
           </div>
 
           {/* Quantity Selector */}
           <div className="flex items-center justify-center space-x-3">
             <button
-              onClick={() => setQuantity(q => Math.max(1, q - 1))}
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
               className="px-3 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={quantity <= 1 || loading}
               aria-label="Decrease quantity"
@@ -291,13 +306,10 @@ function CheckoutForm() {
               value={quantity}
               onChange={(e) => {
                 const val = parseInt(e.target.value, 10);
-                // Update only if it's a valid number >= 1
                 if (!isNaN(val) && val >= 1) {
                   setQuantity(val);
                 } else if (e.target.value === '') {
-                  // Allow empty input temporarily, maybe default to 1 on blur if needed
-                  // Or handle it based on desired UX (e.g., setQuantity(1) if empty)
-                   setQuantity(1); // Set to 1 if cleared
+                  setQuantity(1);
                 }
               }}
               className="text-xl font-medium w-16 text-center border border-purple-300 rounded-md p-1 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -305,9 +317,9 @@ function CheckoutForm() {
               disabled={loading}
             />
             <button
-              onClick={() => setQuantity(q => q + 1)}
+              onClick={() => setQuantity((q) => q + 1)}
               className="px-3 py-1 rounded-md bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-              disabled={loading} // You might add an upper limit later
+              disabled={loading}
               aria-label="Increase quantity"
             >
               +
@@ -325,11 +337,9 @@ function CheckoutForm() {
               Background successfully removed! ✅
             </div>
           )}
-          {/* Display background removal errors specifically if needed, or rely on general error */}
 
           <div className="border-t border-purple-200/50 pt-4">
             <h3 className="font-bold text-xl text-purple-800">Order Summary</h3>
-            {/* Dynamic Order Summary */}
             <div className="flex justify-between mt-3 text-lg">
               <span>Custom Sticker (x{quantity})</span>
               <span className="font-medium">${stickerSubtotal.toFixed(2)}</span>
@@ -346,10 +356,10 @@ function CheckoutForm() {
                 <span className="font-medium">${backgroundRemovalSubtotal.toFixed(2)}</span>
               </div>
             )}
-             <div className="flex justify-between mt-2 text-lg">
-               <span>Subtotal</span>
-               <span className="font-medium">${subtotalBeforeShipping.toFixed(2)}</span>
-             </div>
+            <div className="flex justify-between mt-2 text-lg">
+              <span>Subtotal</span>
+              <span className="font-medium">${subtotalBeforeShipping.toFixed(2)}</span>
+            </div>
             <div className="flex justify-between mt-2 text-lg">
               <span>Shipping</span>
               {isShippingFree ? (
@@ -358,11 +368,6 @@ function CheckoutForm() {
                 <span className="font-medium">${shippingCost.toFixed(2)}</span>
               )}
             </div>
-            {!isShippingFree && amountNeededForFreeShipping > 0 && (
-              <div className="text-sm text-center mt-1 text-purple-700 bg-purple-100 py-1 px-2 rounded">
-                Add ${amountNeededForFreeShipping.toFixed(2)} more for FREE shipping!
-              </div>
-            )}
             <div className="flex justify-between mt-3 text-xl font-bold border-t border-purple-200/50 pt-2">
               <span>Total</span>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
@@ -373,170 +378,166 @@ function CheckoutForm() {
         </div>
         {/* --- End Column 2 --- */}
 
-        {/* --- Column 3: Shipping and Payment Form --- */}
-        {/* Added order class for consistency */} 
-        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 md:order-3 order-3">
+        {/* --- Column 3: Shipping and Payment Form (Span 2) --- */}
+        <div className="backdrop-blur-sm bg-white/30 p-6 rounded-2xl shadow-xl border border-white/60 md:order-3 order-3 md:col-span-2">
           <form onSubmit={handleSubmit} className="space-y-4">
-             {/* Keep existing shipping fields */}            
             <h2 className="text-2xl font-bold mb-4 text-purple-800">Shipping Information</h2>
-             {/* ... (firstName, lastName, email, phone, country, region, address1, address2, city, zip inputs remain the same) ... */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-purple-900">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-purple-900">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-purple-900">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-purple-900">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="country" className="block text-sm font-medium text-purple-900">
-                    Country
-                  </label>
-                  <select
-                    id="country"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="US">United States</option>
-                    <option value="CA">Canada</option>
-                    <option value="GB">United Kingdom</option>
-                    {/* Add other countries as needed */}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="region" className="block text-sm font-medium text-purple-900">
-                    State/Province
-                  </label>
-                  <input
-                    type="text"
-                    id="region"
-                    name="region"
-                    value={formData.region}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="address1" className="block text-sm font-medium text-purple-900">
-                  Address Line 1
+                <label htmlFor="firstName" className="block text-sm font-medium text-purple-900">
+                  First Name
                 </label>
                 <input
                   type="text"
-                  id="address1"
-                  name="address1"
-                  value={formData.address1}
+                  id="firstName"
+                  name="firstName"
+                  value={formData.firstName}
                   onChange={handleInputChange}
                   className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   required
                 />
               </div>
-
               <div>
-                <label htmlFor="address2" className="block text-sm font-medium text-purple-900">
-                  Address Line 2 (optional)
+                <label htmlFor="lastName" className="block text-sm font-medium text-purple-900">
+                  Last Name
                 </label>
                 <input
                   type="text"
-                  id="address2"
-                  name="address2"
-                  value={formData.address2}
+                  id="lastName"
+                  name="lastName"
+                  value={formData.lastName}
                   onChange={handleInputChange}
                   className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="city" className="block text-sm font-medium text-purple-900">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    id="city"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="zip" className="block text-sm font-medium text-purple-900">
-                    ZIP / Postal Code
-                  </label>
-                  <input
-                    type="text"
-                    id="zip"
-                    name="zip"
-                    value={formData.zip}
-                    onChange={handleInputChange}
-                    className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  />
-                </div>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-purple-900">
+                Email
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="phone" className="block text-sm font-medium text-purple-900">
+                Phone
+              </label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                value={formData.phone}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="country" className="block text-sm font-medium text-purple-900">
+                  Country
+                </label>
+                <select
+                  id="country"
+                  name="country"
+                  value={formData.country}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                >
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                  <option value="GB">United Kingdom</option>
+                  {/* Add other countries as needed */}
+                </select>
               </div>
+              <div>
+                <label htmlFor="region" className="block text-sm font-medium text-purple-900">
+                  State/Province
+                </label>
+                <input
+                  type="text"
+                  id="region"
+                  name="region"
+                  value={formData.region}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
 
-            {/* Updated Submit Button */}
+            <div>
+              <label htmlFor="address1" className="block text-sm font-medium text-purple-900">
+                Address Line 1
+              </label>
+              <input
+                type="text"
+                id="address1"
+                name="address1"
+                value={formData.address1}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="address2" className="block text-sm font-medium text-purple-900">
+                Address Line 2 (optional)
+              </label>
+              <input
+                type="text"
+                id="address2"
+                name="address2"
+                value={formData.address2}
+                onChange={handleInputChange}
+                className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="city" className="block text-sm font-medium text-purple-900">
+                  City
+                </label>
+                <input
+                  type="text"
+                  id="city"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="zip" className="block text-sm font-medium text-purple-900">
+                  ZIP / Postal Code
+                </label>
+                <input
+                  type="text"
+                  id="zip"
+                  name="zip"
+                  value={formData.zip}
+                  onChange={handleInputChange}
+                  className="mt-1 block w-full border border-purple-200 rounded-xl shadow-sm p-2 bg-white/70 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required
+                />
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={loading || !stripe || isRemovingBackground}
@@ -545,14 +546,30 @@ function CheckoutForm() {
               <span className="relative z-10 flex items-center justify-center">
                 {loading ? (
                   <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    <svg
+                      className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
                     </svg>
                     Processing Payment...
                   </>
                 ) : (
-                  `Pay $${totalPrice.toFixed(2)} ✨` // Update button text
+                  `Pay $${totalPrice.toFixed(2)} ✨`
                 )}
               </span>
             </button>
@@ -563,7 +580,6 @@ function CheckoutForm() {
     </div>
   );
 }
-
 
 // Main component wrapping the form with Elements provider
 export default function CheckoutPage() {
@@ -578,8 +594,8 @@ export default function CheckoutPage() {
 
       {/* Wrap the form content with Elements */}
       <Elements stripe={stripePromise}>
-         <CheckoutForm />
+        <CheckoutForm />
       </Elements>
     </main>
   );
-} 
+}

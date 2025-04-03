@@ -42,7 +42,7 @@ export default function UserRecentDesigns() {
     
     const fetchUserImages = async () => {
       try {
-        const response = await fetch(`http://localhost:3001/api/generate-image/user/${userId}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/generate-image/user/${userId}`, {
           signal,
           cache: 'no-store'
         });

@@ -23,7 +23,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the backend API to test Printify integration
-      const response = await fetch('http://localhost:3001/api/order/debug/printify', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/debug/printify`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -46,7 +46,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the backend API to test Printify integration
-      const response = await fetch('http://localhost:3001/api/order/test-printify', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/test-printify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +85,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the simplified product creation endpoint
-      const response = await fetch('http://localhost:3001/api/order/test/product', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/test/product`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +108,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the endpoint that will generate an image and create a product
-      const response = await fetch('http://localhost:3001/api/order/test/generate-and-create', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/test/generate-and-create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +138,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the catalog endpoint
-      const response = await fetch('http://localhost:3001/api/order/debug/catalog', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/debug/catalog`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the basic access test endpoint
-      const response = await fetch('http://localhost:3001/api/order/test/basic-access', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/test/basic-access`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -184,7 +184,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the external order test endpoint
-      const response = await fetch('http://localhost:3001/api/order/test-external', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/test-external`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -222,7 +222,7 @@ export default function DebugPrintifyPage() {
 
     try {
       // Call the fully mocked order endpoint that bypasses Printify completely
-      const response = await fetch('http://localhost:3001/api/order/test-mock', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/test-mock`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

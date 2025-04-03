@@ -28,7 +28,7 @@ export default function RecentImages() {
     const fetchRecentImages = async () => {
       console.log('fetchRecentImages starting');
       try {
-        const response = await fetch('http://localhost:3001/api/generate-image/recent', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/generate-image/recent`, {
           signal,
           // Add cache: 'no-store' to prevent caching
           cache: 'no-store'

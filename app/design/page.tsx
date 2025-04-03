@@ -78,7 +78,7 @@ export default function DesignPage() {
     try {
       console.log('Calling backend API to generate image...');
       // Call the backend API to generate the image
-      const response = await fetch('http://localhost:3001/api/generate-image', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL || 'http://localhost:3001'}/api/generate-image`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
