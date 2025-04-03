@@ -147,6 +147,9 @@ export default function Home() {
                 className="mb-2" 
               />
             </div>
+            <p className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 mb-4">
+              Turn your ideas into real 3x4" stickers, delivered in 5-7 days! ✨
+            </p>
             <p className="text-xl font-semibold text-gray-800">
               Let your imagination run wild & embrace the <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-blue-500 to-purple-600">chaos</span>!
             </p>

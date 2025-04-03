@@ -4,7 +4,7 @@ export default function HowItWorks() {
   return (
     <main className="container mx-auto py-12 px-4">
       <h1 className="text-4xl font-bold text-center mb-10 bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600">
-        How ChaosStickers Works
+        How ChaosStickers Work
       </h1>
       
       <div className="max-w-4xl mx-auto space-y-12">
@@ -52,8 +52,7 @@ export default function HowItWorks() {
             <div className="md:w-3/4">
               <h2 className="text-2xl font-bold text-blue-800 mb-3">Preview Your Sticker</h2>
               <p className="text-gray-700">
-                See exactly how your sticker will look before you buy. You can make adjustments
-                or try different ideas until you find the perfect design that speaks to you.
+                See exactly how your sticker will look before you buy. You can make try different ideas until you find the perfect design that speaks to you.
               </p>
             </div>
           </div>
