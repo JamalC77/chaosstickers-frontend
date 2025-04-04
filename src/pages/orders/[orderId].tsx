@@ -98,7 +98,7 @@ const OrderDetailsPage = ({ order }: { order: Order }) => {
   return (
     <>
       <Head>
-        <title>Order #{order.id} Details - Chaos Stickers</title>
+        <title>Order #{order.id} Details - ChaosStickers</title>
       </Head>
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
         <Paper elevation={3} sx={{ p: { xs: 2, md: 3 } }}>
