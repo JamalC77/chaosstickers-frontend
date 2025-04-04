@@ -39,6 +39,12 @@ function ConfirmationContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Add a check to ensure searchParams is not null
+    if (!searchParams) {
+        setError('Could not retrieve search parameters.');
+        setLoading(false);
+        return;
+    }
     const sessionId = searchParams.get('session_id');
 
     if (!sessionId) {
@@ -59,7 +65,7 @@ function ConfirmationContent() {
       try {
         console.log(`Fetching confirmed order details for session_id: ${sessionId}`);
         // Call the new backend endpoint
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/order/confirm-and-fetch?sessionId=${sessionId}`);
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL}/api/orders/confirm-and-fetch?sessionId=${sessionId}`);
         
         // No need for 404 retry logic here, backend handles waiting
         
