@@ -45,30 +45,44 @@ export default function Navigation() {
   return (
     <header className="bg-white shadow-sm p-4 sticky top-0 z-50">
       <div className="container mx-auto flex justify-between items-center">
-        <Link href="/" className="flex items-center">
-          <Image 
-            src="/a894840a-2690-4f1f-9cfd-5b0c1c3e6285.png" 
-            alt="ChaosStickers Logo" 
-            width={50} 
-            height={50} 
-            className="mr-2"
-          />
-        </Link>
+        {/* Left aligned group: Logo, Home, Business, Support */}
+        <div className="flex items-center space-x-6">
+          <Link href="/" className="flex items-center">
+            <Image 
+              src="/a894840a-2690-4f1f-9cfd-5b0c1c3e6285.png" 
+              alt="ChaosStickers Logo" 
+              width={50} 
+              height={50} 
+              className="mr-2" // Keep margin for spacing from first nav link
+            />
+          </Link>
+          <nav>
+            <ul className="flex space-x-6 items-center">
+              <li>
+                <Link href="/" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link href="/business" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  Business
+                </Link>
+              </li>
+              <li>
+                <Link href="/support" className="text-gray-600 hover:text-blue-600 transition-colors">
+                  Support
+                </Link>
+              </li>
+            </ul>
+          </nav>
+        </div>
+
+        {/* Right aligned group: How It Works, Recent Designs, Cart */}
         <nav>
           <ul className="flex space-x-6 items-center">
             <li>
-              <Link href="/" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Home
-              </Link>
-            </li>
-            <li>
               <Link href="/how-it-works" className="text-gray-600 hover:text-blue-600 transition-colors">
                 How It Works
-              </Link>
-            </li>
-            <li>
-              <Link href="/business" className="text-gray-600 hover:text-blue-600 transition-colors">
-                Business
               </Link>
             </li>
             {/* <li>
