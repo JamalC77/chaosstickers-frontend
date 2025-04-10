@@ -11,6 +11,8 @@ export default function DesignPage() {
   const [error, setError] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [imageId, setImageId] = useState<string | null>(null);
+  const [editablePrompt, setEditablePrompt] = useState('');
+  const [useReferenceImage, setUseReferenceImage] = useState(false);
   const router = useRouter();
   const apiCallMade = useRef(false);
 
@@ -41,6 +43,7 @@ export default function DesignPage() {
     }
 
     setPrompt(storedPrompt);
+    setEditablePrompt(storedPrompt);
     
     // Check if we already have an image URL for this prompt
     const storedImageUrl = localStorage.getItem('generatedImageUrl');
@@ -68,15 +71,20 @@ export default function DesignPage() {
     };
   }, [userId, router]);
 
-  const generateImage = async (promptText: string, signal?: AbortSignal, forceRegenerate: boolean = false) => {
-    // Don't regenerate if we're already loading
+  const generateImage = async (
+    promptText: string, 
+    signal?: AbortSignal, 
+    forceRegenerate: boolean = false,
+    referenceUrl?: string
+  ) => {
+    // Don't regenerate if we're already loading and not forcing regeneration
     if (loading && imageUrl && !forceRegenerate) return;
     
     setLoading(true);
     setError('');
 
     try {
-      console.log('Calling backend API to generate image...');
+      console.log('Calling backend API to generate image...', { promptText, forceRegenerate, referenceUrl, userId });
       // Call the backend API to generate the image
       const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL || 'http://localhost:3001'}/api/generate-image`, {
         method: 'POST',
@@ -90,7 +98,8 @@ export default function DesignPage() {
           prompt: promptText,
           timestamp: Date.now(), // Add timestamp to prevent caching
           regenerate: forceRegenerate,
-          userId: userId // Include userId to associate with the generated image
+          userId: userId, // Include userId to associate with the generated image
+          referenceUrl: referenceUrl, // Send the URL if provided
         }),
         signal,
         cache: 'no-store'
@@ -139,7 +148,30 @@ export default function DesignPage() {
     apiCallMade.current = false;
     setImageUrl(''); // Clear the current image
     setImageId(null); // Clear the image ID
-    generateImage(prompt, undefined, true); // Force regeneration
+    setEditablePrompt(prompt); // Reset editable prompt to original
+    setUseReferenceImage(false); // Reset checkbox
+    generateImage(prompt, undefined, true); // Force regeneration with original prompt
+  };
+
+  const handleRegenerateWithChanges = () => {
+    let refUrl: string | undefined = undefined;
+
+    if (useReferenceImage) {
+      refUrl = localStorage.getItem('generatedImageUrl') || undefined;
+    }
+
+    // Update the main prompt state to reflect the one being used for regeneration
+    setPrompt(editablePrompt);
+
+    // Clear the stored image URL from localStorage (regardless of checkbox state)
+    localStorage.removeItem('generatedImageUrl');
+    localStorage.removeItem('generatedImageId');
+    localStorage.removeItem('hasRemovedBackground');
+    apiCallMade.current = false;
+    setImageUrl(""); // Clear the current image
+    setImageId(null); // Clear the image ID
+    // Use the current editablePrompt and referenceUrl
+    generateImage(editablePrompt, undefined, true, refUrl); 
   };
 
   const handleProceedToCheckout = () => {
@@ -174,7 +206,7 @@ export default function DesignPage() {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="relative h-[400px] w-full border-2 border-purple-200/50 rounded-lg overflow-hidden bg-white/50 backdrop-blur-sm shadow-lg">
+            <div className="relative h-[400px] w-full border-2 border-purple-200/50 rounded-lg overflow-hidden backdrop-blur-sm shadow-lg">
               {imageUrl && (
                 <Image
                   src={imageUrl}
@@ -187,16 +219,49 @@ export default function DesignPage() {
             </div>
             
             <div className="flex flex-col gap-4">
-              <div className="flex flex-row gap-4">
-                <button
+              <div className="space-y-4 p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-purple-200/50 shadow-md">
+                <div>
+                  <label htmlFor="editablePrompt" className="block text-sm font-medium text-purple-800 mb-1">Edit Your Prompt:</label>
+                  <textarea
+                    id="editablePrompt"
+                    value={editablePrompt}
+                    onChange={(e) => setEditablePrompt(e.target.value)}
+                    rows={3}
+                    className="w-full p-2 border border-purple-300 rounded-md focus:ring-purple-500 focus:border-purple-500 bg-white/80"
+                    placeholder="Describe your desired sticker..."
+                  />
+                </div>
+                <div className="flex items-center">
+                  <input
+                    id="useReferenceImage"
+                    type="checkbox"
+                    checked={useReferenceImage}
+                    onChange={(e) => setUseReferenceImage(e.target.checked)}
+                    className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                  />
+                  <label htmlFor="useReferenceImage" className="ml-2 block text-sm text-purple-800 font-medium">
+                    Use current image as reference? 
+                  </label>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                {/* <button
                   onClick={handleRegenerate}
-                  className="py-3 px-6 bg-white/70 backdrop-blur-sm text-purple-800 font-bold rounded-xl hover:bg-white/90 transition-all duration-300 hover:shadow-lg flex-1 border border-purple-200"
+                  className="py-3 px-6 bg-white/70 backdrop-blur-sm text-purple-800 font-bold rounded-xl hover:bg-white/90 transition-all duration-300 hover:shadow-lg flex-1 border border-purple-200 text-sm sm:text-base"
                 >
-                  Reimagine the Sticker? ✨
+                  Reimagine (Original Prompt) ✨
+                </button> */}
+                 <button
+                  onClick={handleRegenerateWithChanges}
+                  disabled={loading}
+                  className={`py-3 px-6 bg-gradient-to-r from-pink-500 to-yellow-500 text-white font-bold rounded-xl transition-all duration-300 hover:shadow-lg flex-1 text-sm sm:text-base ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:from-pink-600 hover:to-yellow-600'}`}
+                >
+                  {loading ? 'Regenerating...' : 'Regenerate 🎨'}
                 </button>
                 <button
                   onClick={handleProceedToCheckout}
-                  className="art-button py-3 px-6 rounded-xl text-white font-bold focus:outline-none flex-1"
+                  className="art-button py-3 px-6 rounded-xl text-white font-bold focus:outline-none flex-1 text-sm sm:text-base"
                 >
                   <span className="relative z-10">Continue to Checkout</span>
                 </button>
@@ -206,7 +271,7 @@ export default function DesignPage() {
         )}
         
         <div className="mt-8">
-          <h2 className="text-xl font-bold mb-3 text-purple-800">Your Creative Prompt:</h2>
+          <h2 className="text-xl font-bold mb-3 text-purple-800">Original Prompt:</h2>
           <p className="p-4 bg-white/70 backdrop-blur-sm rounded-lg border border-purple-200/50 shadow-md">{prompt}</p>
         </div>
       </div>

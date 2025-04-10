@@ -17,7 +17,7 @@ export default function BusinessPage() {
           <div>
             <h2 className="text-2xl font-semibold mb-3 text-gray-900">Ready to Collaborate?</h2>
             <p className="mb-4">
-              For bulk orders, general inquiries, or exciting partnership opportunities, our expert sales team is ready to assist:
+              For bulk orders, general inquiries, or exciting partnership opportunities, our sales team is ready to assist:
             </p>
             <a 
               href="mailto:sales@chaos-stickers.com" 
