@@ -457,14 +457,11 @@ function CheckoutForm() {
                   required
                 >
                   <option value="US">United States</option>
-                  <option value="CA">Canada</option>
-                  <option value="GB">United Kingdom</option>
-                  {/* Add other countries as needed */}
                 </select>
               </div>
               <div>
                 <label htmlFor="region" className="block text-sm font-medium text-purple-900">
-                  State/Province
+                  State
                 </label>
                 <input
                   type="text"
