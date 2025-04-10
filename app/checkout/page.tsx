@@ -88,16 +88,16 @@ function CheckoutForm() {
           setItems(validatedItems);
         } else {
           console.warn('No valid checkout items found in localStorage after validation.');
-          router.push('/'); // Redirect if no valid items remain
+          // router.push('/'); // Redirect if no valid items remain
         }
       } catch (e) {
         console.error('Failed to parse or validate checkout items from localStorage:', e);
         localStorage.removeItem('checkoutItems'); // Clear corrupted data
-        router.push('/'); // Redirect on error
+        // router.push('/'); // Redirect on error
       }
     } else {
       console.log('No checkout items found in localStorage.');
-      router.push('/'); // Redirect if no items key
+      // router.push('/'); // Redirect if no items key
     }
     // --- End Load Items ---
 
