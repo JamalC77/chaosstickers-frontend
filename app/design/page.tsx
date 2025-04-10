@@ -4,6 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
+// Define CheckoutItem interface here as well for now
+// TODO: Move to a shared types file
+interface CheckoutItem {
+  id: string;
+  imageUrl: string;
+  quantity: number;
+}
+
 export default function DesignPage() {
   const [prompt, setPrompt] = useState('');
   const [imageUrl, setImageUrl] = useState('');
@@ -144,7 +152,6 @@ export default function DesignPage() {
     // Clear the stored image URL from localStorage
     localStorage.removeItem('generatedImageUrl');
     localStorage.removeItem('generatedImageId');
-    localStorage.removeItem('hasRemovedBackground');
     apiCallMade.current = false;
     setImageUrl(''); // Clear the current image
     setImageId(null); // Clear the image ID
@@ -166,7 +173,6 @@ export default function DesignPage() {
     // Clear the stored image URL from localStorage (regardless of checkbox state)
     localStorage.removeItem('generatedImageUrl');
     localStorage.removeItem('generatedImageId');
-    localStorage.removeItem('hasRemovedBackground');
     apiCallMade.current = false;
     setImageUrl(""); // Clear the current image
     setImageId(null); // Clear the image ID
@@ -175,7 +181,59 @@ export default function DesignPage() {
   };
 
   const handleProceedToCheckout = () => {
-    router.push('/checkout');
+    // Check if an image URL exists
+    if (!imageUrl) {
+      console.error('Attempted to proceed to checkout without an image URL.');
+      setError('Please generate or wait for an image to load before proceeding.');
+      return;
+    }
+
+    // Create the item to be added to the checkout
+    const newCheckoutItem: CheckoutItem = {
+      id: imageId || crypto.randomUUID(), // Use DB image ID if available, otherwise generate a UUID
+      imageUrl: imageUrl,
+      quantity: 1 // Default quantity for a newly designed item
+    };
+
+    // Read existing items from localStorage
+    let existingItems: CheckoutItem[] = [];
+    const storedItemsString = localStorage.getItem('checkoutItems');
+
+    if (storedItemsString) {
+      try {
+        const parsedItems = JSON.parse(storedItemsString);
+        // Ensure parsed data is an array before assigning
+        if (Array.isArray(parsedItems)) {
+           // Optional: Add validation here to ensure items in the array match the CheckoutItem structure
+           existingItems = parsedItems.filter(item => item && item.id && item.imageUrl);
+        } else {
+          console.warn('Existing checkoutItems in localStorage was not an array. Starting fresh.');
+        }
+      } catch (error) {
+        console.error('Failed to parse existing checkoutItems from localStorage. Starting fresh.', error);
+        // If parsing fails, we start with an empty array, effectively overwriting corrupted data.
+      }
+    }
+
+    // Append the new item to the existing list
+    const updatedItemsArray = [...existingItems, newCheckoutItem];
+
+    try {
+      // Save the updated array to localStorage
+      localStorage.setItem('checkoutItems', JSON.stringify(updatedItemsArray));
+
+      // Clear potentially outdated single-item keys if they exist
+      localStorage.removeItem('generatedImageUrl'); // We now use checkoutItems
+      localStorage.removeItem('generatedImageId');
+      // Keep 'hasRemovedBackground'? Maybe, if it's used for display on checkout before full cart logic.
+
+      // Navigate to the checkout page
+      console.log('Proceeding to checkout with items:', updatedItemsArray);
+      router.push('/checkout');
+    } catch (error) {
+      console.error('Failed to save items to localStorage or navigate:', error);
+      setError('Could not proceed to checkout. Please try again.');
+    }
   };
 
   return (

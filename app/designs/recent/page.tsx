@@ -12,9 +12,15 @@ interface GeneratedImage {
   imageUrl: string;
   userId: string | null; // Based on schema 'String?'
   noBackgroundUrl: string | null; // Based on schema 'String?'
-  hasRemovedBackground: boolean; // Based on schema 'Boolean'
   createdAt: string; // Date comes as string in JSON
   // Add other fields if the API sends them and they are needed
+}
+
+// Add CheckoutItem interface (TODO: Share type)
+interface CheckoutItem {
+  id: number; // Use numeric DB ID
+  imageUrl: string;
+  quantity: number;
 }
 
 interface PaginationInfo {
@@ -38,6 +44,7 @@ const RecentDesignsGrid = () => {
   const [error, setError] = useState<string | null>(null);
   // State now solely drives the displayed page
   const [currentPage, setCurrentPage] = useState(initialPage);
+  const [cartItemIds, setCartItemIds] = useState<Set<number>>(new Set()); // Use Set<number> for IDs
 
   const limit = 20; // Items per page
 
@@ -97,6 +104,109 @@ const RecentDesignsGrid = () => {
     // Dependency array ensures this runs when currentPage changes
   }, [currentPage, limit, router]); // Removed other dependencies, focus on page change
 
+  // --- Cart State Effect (Similar to other components) ---
+   const updateCartState = () => {
+    if (typeof window !== 'undefined') {
+        const storedItemsString = localStorage.getItem('checkoutItems');
+        const currentCartIds = new Set<number>(); // Use Set<number>
+        if (storedItemsString) {
+            try {
+                const parsedItems: CheckoutItem[] = JSON.parse(storedItemsString);
+                if (Array.isArray(parsedItems)) {
+                    // Add the numeric id to the set
+                    parsedItems.forEach(item => {
+                         if (item && typeof item.id === 'number') { // Check type
+                             currentCartIds.add(item.id);
+                         } else {
+                            console.warn("Parsed item with non-numeric ID found in recent/page:", item);
+                         }
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to parse checkoutItems for RecentDesignsPage state update:', error);
+            }
+        }
+        setCartItemIds(currentCartIds); // Update state
+    }
+  };
+
+  useEffect(() => {
+    updateCartState(); // Initial load
+
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'checkoutItems') {
+         console.log("Detected storage change for checkoutItems in recent/page, updating cart state.");
+        updateCartState();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // --- Cart Management Functions (Similar to other components) ---
+  const addToCart = (image: GeneratedImage) => {
+    const newItem: CheckoutItem = {
+        id: image.id, // Use numeric DB ID
+        imageUrl: image.imageUrl,
+        quantity: 1,
+    };
+
+    let existingItems: CheckoutItem[] = [];
+    const storedItemsString = localStorage.getItem('checkoutItems');
+    if (storedItemsString) {
+        try {
+            const parsed = JSON.parse(storedItemsString);
+            if (Array.isArray(parsed)) {
+                // Filter ensuring items have numeric id
+                existingItems = parsed.filter(item => item && typeof item.id === 'number' && item.imageUrl);
+            }
+        } catch (e) { console.error("Error parsing cart for add in recent/page:", e); }
+    }
+
+    // Check existence using numeric ID
+    if (!existingItems.some(item => item.id === newItem.id)) {
+        const updatedItems = [...existingItems, newItem];
+        try {
+            console.log("Adding item to cart in recent/page (ID):", newItem.id);
+            localStorage.setItem('checkoutItems', JSON.stringify(updatedItems));
+            // Trigger storage event manually
+            window.dispatchEvent(new StorageEvent('storage', { key: 'checkoutItems' }));
+        } catch (e) { console.error("Error saving cart in recent/page:", e); }
+    } else {
+        console.log("Item already in cart in recent/page (ID):", newItem.id);
+    }
+  };
+
+  const removeFromCart = (imageIdToRemove: number) => { // ID is number
+    let existingItems: CheckoutItem[] = [];
+    const storedItemsString = localStorage.getItem('checkoutItems');
+     if (storedItemsString) {
+        try {
+            const parsed = JSON.parse(storedItemsString);
+            if (Array.isArray(parsed)) {
+                 // Filter ensuring items have numeric id
+                existingItems = parsed.filter(item => item && typeof item.id === 'number' && item.imageUrl);
+            }
+        } catch (e) { console.error("Error parsing cart for remove in recent/page:", e); }
+    }
+
+    // Filter using numeric ID
+    const updatedItems = existingItems.filter(item => item.id !== imageIdToRemove);
+
+    if (updatedItems.length !== existingItems.length) {
+        try {
+            console.log("Removing item from cart in recent/page (ID):", imageIdToRemove);
+            localStorage.setItem('checkoutItems', JSON.stringify(updatedItems));
+            // Trigger storage event manually
+            window.dispatchEvent(new StorageEvent('storage', { key: 'checkoutItems' }));
+        } catch (e) { console.error("Error saving cart after remove in recent/page:", e); }
+    } else {
+         console.log("Attempted to remove item not found in cart in recent/page (ID):", imageIdToRemove);
+    }
+  };
+
   const handlePageChange = (newPage: number) => {
     console.log(`[handlePageChange] Called with newPage: ${newPage}. Current page: ${currentPage}. Total pages: ${pagination?.totalPages}`);
     // Basic validation
@@ -144,23 +254,54 @@ const RecentDesignsGrid = () => {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
             {designs.length > 0 ? (
-              designs.map((design) => (
-                <div
-                    key={design.id}
-                    className="aspect-square overflow-hidden rounded-lg border border-gray-200 cursor-pointer"
-                    onClick={() => handleImageClick(design)}
-                >
-                  <Image
-                      src={design.imageUrl}
-                      alt={`Design ${design.id}`}
-                      width={200}
-                      height={200}
-                      className="w-full h-auto object-cover transition-transform duration-200 hover:scale-105"
-                      unoptimized
-                      priority={true}
-                  />
-                </div>
-              ))
+              designs.map((design) => {
+                const isInCart = cartItemIds.has(design.id); // Check cart using numeric ID
+                return (
+                  <div key={design.id} className="relative group">
+                    {/* Clickable Image Area */}
+                    <div
+                        className="aspect-square overflow-hidden rounded-lg border border-gray-200 cursor-pointer bg-white/50"
+                        onClick={() => handleImageClick(design)} // Keep navigation click
+                    >
+                      <Image
+                          src={design.imageUrl}
+                          alt={`Design ${design.id}`}
+                          width={200}
+                          height={200}
+                          className="w-full h-auto object-cover transition-transform duration-200 group-hover:scale-105"
+                          unoptimized
+                          priority={false} // Adjust priority if needed
+                      />
+                      {/* Optional: Add prompt tooltip like in other components if desired */}
+                    </div>
+
+                     {/* Hover Overlay for Cart Actions */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg">
+                        {isInCart ? (
+                        <button
+                            onClick={(e) => {
+                            e.stopPropagation(); // Prevent navigation click
+                            removeFromCart(design.id); // Use numeric ID
+                            }}
+                            className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold py-1 px-3 rounded-full shadow transition-colors"
+                        >
+                            Remove from Cart
+                        </button>
+                        ) : (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation(); // Prevent navigation click
+                                addToCart(design); // Use numeric ID
+                            }}
+                            className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold py-1 px-3 rounded-full shadow transition-colors"
+                        >
+                            Add to Cart
+                        </button>
+                        )}
+                    </div>
+                  </div>
+                );
+              })
             ) : (
               <p>No recent designs found for page {currentPage}.</p>
             )}

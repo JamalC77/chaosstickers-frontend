@@ -81,8 +81,17 @@ function ConfirmationContent() {
         const data = await response.json();
         console.log('Received confirmed order data:', data);
         setOrder(data.order);
-        localStorage.removeItem('generatedImageUrl');
-        localStorage.removeItem('hasRemovedBackground');
+        
+        // Clear local storage items related to cart/checkout on success
+        localStorage.removeItem('checkoutItems');
+        localStorage.removeItem('userPrompt'); // Also clear the last used prompt
+        localStorage.removeItem('generatedImageUrl'); // Already done but good to be sure
+        localStorage.removeItem('generatedImageId');
+        localStorage.removeItem('hasRemovedBackground'); // Already done but good to be sure
+
+        // Optionally trigger a storage event for the navigation bar if it doesn't update automatically
+        window.dispatchEvent(new Event('storage'));
+
         setLoading(false);
       } catch (err: any) {
         console.error('Error fetching confirmed order:', err);
@@ -137,23 +146,37 @@ function ConfirmationContent() {
 
       <h1 className="text-4xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-green-500 via-teal-500 to-emerald-500">Success!</h1>
       <p className="text-gray-800 font-medium mb-8 text-lg">
-        Your artistic creation is on its way to becoming a real sticker!
+        Your artistic creations are on their way to becoming real stickers!
       </p>
 
-      {/* Display the sticker image from the order item */}
-      {order?.items?.[0]?.imageUrl && (
-        <div className="relative h-[200px] w-full mb-8 border-2 border-purple-200/50 rounded-lg overflow-hidden bg-white/50 backdrop-blur-sm shadow-lg">
-          <Image
-            src={order.items[0].imageUrl}
-            alt="Your sticker design"
-            fill
-            style={{ objectFit: 'contain' }}
-            priority
-          />
+      {/* Display all sticker images from the order items */}
+      <div className="mb-8 w-full">
+        <h2 className="font-bold mb-3 text-green-800 text-lg">Your Stickers:</h2>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4 p-4 bg-white/30 backdrop-blur-sm rounded-lg border border-green-200/50 shadow-md max-h-[300px] overflow-y-auto scrollbar-thin scrollbar-thumb-green-400 scrollbar-track-green-100">
+          {order?.items && order.items.length > 0 ? (
+            order.items.map((item) => (
+              <div key={item.id || item.imageUrl} className="flex flex-col items-center text-center">
+                <div className="relative h-20 w-20 border border-purple-200/50 rounded-md overflow-hidden bg-white/50 shadow-sm mb-1">
+                  <Image
+                    src={item.imageUrl}
+                    alt="Sticker design"
+                    fill
+                    style={{ objectFit: 'contain' }}
+                    sizes="(max-width: 640px) 25vw, (max-width: 768px) 20vw, 15vw"
+                    priority={false} // Only first few might need priority if list is very long
+                  />
+                </div>
+                <span className="text-xs font-medium text-purple-800">Qty: {item.quantity}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-600 col-span-full text-center">No items found in order details.</p>
+          )}
         </div>
-      )}
+      </div>
 
-      <div className="mb-8 p-4 bg-white/50 backdrop-blur-sm rounded-lg border border-green-200/50 shadow-md w-full">
+
+      <div className="mb-8 p-4 bg-white/50 backdrop-blur-sm rounded-lg border border-green-200/50 shadow-md w-full text-left">
         <h2 className="font-bold mb-3 text-green-800 text-lg">Order Details</h2>
         <div className="flex justify-between mb-2">
           <p className="text-gray-800 font-medium">Order Number:</p>
@@ -171,7 +194,7 @@ function ConfirmationContent() {
              <p className="text-gray-700 font-medium">{order.shippingEmail}</p>
            </div>
         )}
-         {/* Add more details as needed (e.g., shipping address) */}
+         {/* TODO: Optionally add more details (e.g., shipping address) */}
       </div>
 
       <button

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import RecentImages from './components/RecentImages';
 import UserRecentDesigns from './components/UserRecentDesigns';
 
@@ -104,16 +105,12 @@ export default function Home() {
     
     try {
       console.log('Storing prompt in localStorage:', prompt);
-      // Store the prompt in localStorage to use it on the design page
       localStorage.setItem('userPrompt', prompt);
       
-      // Clear any previously generated image from localStorage
       localStorage.removeItem('generatedImageUrl');
       
-      // Add a small delay before navigating to ensure localStorage updates
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Navigate to the design page
       router.push('/design');
     } catch (error) {
       console.error('Error submitting prompt:', error);
@@ -121,14 +118,13 @@ export default function Home() {
     }
   };
 
-  // Function to handle the CHAOTIC button click
   const handleChaoticClick = () => {
     const randomIndex = Math.floor(Math.random() * wackyIdeas.length);
     setPrompt(wackyIdeas[randomIndex]);
   };
 
   return (
-    <main className="min-h-screen flex flex-col items-center p-6">
+    <main className="min-h-screen flex flex-col items-center p-6 relative">
       <div className="absolute inset-0 overflow-hidden z-0 pointer-events-none">
         <div className="absolute -top-24 -left-24 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob"></div>
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-yellow-300 rounded-full mix-blend-multiply filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
