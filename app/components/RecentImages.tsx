@@ -138,7 +138,7 @@ export default function RecentImages() {
     }
   };
 
-  const removeFromCart = (imageUrlToRemove: string) => {
+  const removeFromCart = (imageIdToRemove: number) => {
     let existingItems: CheckoutItem[] = [];
     const storedItemsString = localStorage.getItem('checkoutItems');
      if (storedItemsString) {
@@ -150,7 +150,7 @@ export default function RecentImages() {
         } catch (e) { console.error("Error parsing cart for remove:", e); }
     }
 
-    const updatedItems = existingItems.filter(item => item.id !== imageUrlToRemove);
+    const updatedItems = existingItems.filter(item => item.id !== imageIdToRemove);
 
     try {
         localStorage.setItem('checkoutItems', JSON.stringify(updatedItems));
@@ -227,7 +227,7 @@ export default function RecentImages() {
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      removeFromCart(image.imageUrl);
+                      removeFromCart(image.id);
                     }}
                     className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold py-1 px-3 rounded-full shadow transition-colors"
                   >
