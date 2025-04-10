@@ -27,7 +27,7 @@ export default function BusinessPage() {
             </a>
           </div>
           <p className="mt-8 pt-4 border-t border-indigo-200">
-            We're excited to hear from you and explore how ChaosStickers can elevate your business.
+            We're excited to hear from you to explore how ChaosStickers can elevate your business.
           </p>
         </div>
       </div>
