@@ -200,11 +200,20 @@ export default function UserRecentDesigns() {
 
   // Handles clicking an image - stores info and navigates
   const handleImageClick = (image: GeneratedImage) => {
-    localStorage.setItem('userPrompt', image.prompt);
-    localStorage.setItem('generatedImageUrl', image.imageUrl);
-    localStorage.setItem('generatedImageId', image.id.toString()); // Store numeric ID as string
-    localStorage.removeItem('noBackgroundUrl'); // Clean up potentially stale data
-    // Note: hasRemovedBackground was deprecated and removed
+    // Add type assertion to ensure GeneratedImage includes the needed props
+    const fullImage = image as GeneratedImage & { noBackgroundUrl?: string | null, hasRemovedBackground?: boolean };
+
+    localStorage.setItem('userPrompt', fullImage.prompt);
+    localStorage.setItem('generatedImageUrl', fullImage.imageUrl);
+    localStorage.setItem('generatedImageId', fullImage.id.toString());
+    
+    // Store background removal info
+    if (fullImage.noBackgroundUrl) {
+      localStorage.setItem('noBackgroundUrl', fullImage.noBackgroundUrl);
+    } else {
+      localStorage.removeItem('noBackgroundUrl'); // Ensure it's removed if null
+    }
+    localStorage.setItem('hasRemovedBackground', fullImage.hasRemovedBackground ? 'true' : 'false');
 
     router.push('/design');
   };
@@ -262,30 +271,73 @@ export default function UserRecentDesigns() {
                 </div>
               </div>
 
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg">
-                {isInCart ? (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent navigation click
-                      removeFromCart(image.id); // Use numeric ID
-                    }}
-                    className="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold py-1 px-3 rounded-full shadow transition-colors"
-                    aria-label={`Remove ${image.prompt} from cart`}
-                  >
-                    Remove from Cart
-                  </button>
-                ) : (
-                  <button
-                     onClick={(e) => {
-                        e.stopPropagation(); // Prevent navigation click
-                        addToCart(image); // Use numeric ID
-                     }}
-                    className="bg-green-500 hover:bg-green-600 text-white text-xs font-semibold py-1 px-3 rounded-full shadow transition-colors"
-                    aria-label={`Add ${image.prompt} to cart`}
-                  >
-                    Add to Cart
-                  </button>
-                )}
+              {/* --- Cart Action Overlay --- */}
+              {/* Mobile: Always visible icons bottom-right. Desktop: Centered text buttons on hover */}
+              <div className="absolute bottom-2 right-2 p-1 rounded-full bg-black/50 
+                             md:inset-0 md:flex md:items-center md:justify-center md:p-4 md:bg-black/50 
+                             opacity-100 md:opacity-0 md:group-hover:opacity-100 
+                             transition-opacity duration-300 pointer-events-none md:rounded-lg">
+                 
+                 {/* Container for actual interactive elements */}
+                 <div className="pointer-events-auto">
+                    {isInCart ? (
+                      <>
+                        {/* Mobile Remove Icon */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFromCart(image.id); 
+                          }}
+                          className="md:hidden p-1 text-white bg-red-600 rounded-full shadow-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 focus:ring-offset-black/50"
+                          aria-label={`Remove ${image.prompt} from cart`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      
+                        {/* Desktop Remove Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); 
+                            removeFromCart(image.id); 
+                          }}
+                          className="hidden md:inline-block bg-red-500 hover:bg-red-600 text-white text-xs font-semibold py-1 px-3 rounded-full shadow transition-colors"
+                          aria-label={`Remove ${image.prompt} from cart`}
+                        >
+                          Remove from Cart
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {/* Mobile Add Icon */}
+                         <button
+                           onClick={(e) => {
+                              e.stopPropagation(); 
+                              addToCart(image); 
+                           }}
+                          className="md:hidden p-1 text-white bg-green-600 rounded-full shadow-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 focus:ring-offset-black/50"
+                          aria-label={`Add ${image.prompt} to cart`}
+                        >
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                           </svg>
+                         </button>
+
+                        {/* Desktop Add Button */}
+                        <button
+                           onClick={(e) => {
+                              e.stopPropagation(); 
+                              addToCart(image); 
+                           }}
+                          className="hidden md:inline-block bg-green-500 hover:bg-green-600 text-white text-xs font-semibold py-1 px-3 rounded-full shadow transition-colors"
+                          aria-label={`Add ${image.prompt} to cart`}
+                        >
+                          Add to Cart
+                        </button>
+                      </>
+                    )}
+                  </div>
               </div>
             </div>
           );

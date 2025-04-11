@@ -133,6 +133,14 @@ export default function Home() {
 
       <div className="w-full max-w-6xl flex flex-col md:flex-row gap-6 z-10">
         <section className="w-full md:w-2/3 backdrop-blur-sm bg-gradient-to-br from-purple-100 via-pink-100 to-white/30 p-8 rounded-2xl shadow-2xl border border-white/60">
+          <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+              <p className="text-gray-800 font-semibold text-center">
+                ✨ Enter your design idea, get <span className="text-purple-700 font-bold">real physical stickers</span> delivered to your door! ✨
+              </p>
+              <p className="text-sm text-gray-600 mt-1 text-center">
+                Premium vinyl stickers shipped within the US in 5-7 business days
+              </p>
+            </div>
           <div className="text-center mb-8 relative">
             <div className="flex justify-center items-center mb-4">
               <Image 
@@ -204,14 +212,7 @@ export default function Home() {
                 🎲 Feeling CHAOTIC?
               </button>
             </div>
-            <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
-              <p className="text-gray-800 font-semibold">
-                ✨ Design today, get <span className="text-purple-700 font-bold">real physical stickers</span> delivered to your door! ✨
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                Premium vinyl stickers shipped within the US in 5-7 business days
-              </p>
-            </div>
+
           </div>
         </section>
         

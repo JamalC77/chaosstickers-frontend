@@ -36,15 +36,7 @@ body {
 
 @layer components {
   .art-button {
-    @apply relative overflow-hidden rounded-lg font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-xl;
-  }
-  
-  .art-button::before {
-    content: '';
-    @apply absolute inset-0 bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 opacity-80;
-  }
-  
-  .art-button span {
-    @apply relative z-10;
+    @apply relative overflow-hidden rounded-lg font-bold transition-all duration-300 transform hover:scale-105 hover:shadow-xl 
+           bg-gradient-to-r from-purple-500 via-pink-500 to-red-500;
   }
 } 
