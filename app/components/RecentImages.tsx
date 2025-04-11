@@ -160,13 +160,20 @@ export default function RecentImages() {
   };
 
   const handleImageClick = (image: GeneratedImage) => {
-    // Store data needed for the design page
+    console.log(`RecentImages: handleImageClick for ID ${image.id}`);
     localStorage.setItem('userPrompt', image.prompt);
     localStorage.setItem('generatedImageUrl', image.imageUrl);
-    localStorage.removeItem('generatedImageId');
-    localStorage.removeItem('hasRemovedBackground');
+    localStorage.setItem('generatedImageId', image.id.toString()); // Store numeric ID as string
     
-    // Navigate to the design page
+    // --- Clear potentially stale background info when clicking a recent public image --- 
+    // (These images likely haven't had background removal applied in this context)
+    localStorage.removeItem('noBackgroundUrl');
+    localStorage.setItem('hasRemovedBackground', 'false');
+
+    // --- Set the intent flag ---
+    localStorage.setItem('designIntent', 'load'); 
+    console.log("RecentImages: Set designIntent to 'load'");
+
     router.push('/design');
   };
 

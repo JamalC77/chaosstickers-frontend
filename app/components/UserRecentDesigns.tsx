@@ -203,6 +203,7 @@ export default function UserRecentDesigns() {
     // Add type assertion to ensure GeneratedImage includes the needed props
     const fullImage = image as GeneratedImage & { noBackgroundUrl?: string | null, hasRemovedBackground?: boolean };
 
+    console.log(`UserRecentDesigns: handleImageClick for ID ${fullImage.id}`);
     localStorage.setItem('userPrompt', fullImage.prompt);
     localStorage.setItem('generatedImageUrl', fullImage.imageUrl);
     localStorage.setItem('generatedImageId', fullImage.id.toString());
@@ -214,6 +215,10 @@ export default function UserRecentDesigns() {
       localStorage.removeItem('noBackgroundUrl'); // Ensure it's removed if null
     }
     localStorage.setItem('hasRemovedBackground', fullImage.hasRemovedBackground ? 'true' : 'false');
+
+    // --- Set the intent flag --- 
+    localStorage.setItem('designIntent', 'load'); 
+    console.log("UserRecentDesigns: Set designIntent to 'load'");
 
     router.push('/design');
   };

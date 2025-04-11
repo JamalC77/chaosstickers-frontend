@@ -225,17 +225,23 @@ const RecentDesignsGrid = () => {
 
   // Click handler similar to RecentImages component
   const handleImageClick = (design: GeneratedImage) => {
-    console.log(`[handleImageClick] Storing data for design ID: ${design.id}`);
+    console.log(`RecentDesignsGrid: handleImageClick for design ID: ${design.id}`);
     // Store data needed for the '/design' page in localStorage
     localStorage.setItem('userPrompt', design.prompt);
     localStorage.setItem('generatedImageUrl', design.imageUrl);
-    // Optionally store other needed data, like ID or noBackgroundUrl
-    localStorage.setItem('generatedImageId', design.id.toString());
+    localStorage.setItem('generatedImageId', design.id.toString()); // Store numeric ID as string
+    
+    // Store background info if available, otherwise clear/default
     if (design.noBackgroundUrl) {
         localStorage.setItem('noBackgroundUrl', design.noBackgroundUrl);
     } else {
         localStorage.removeItem('noBackgroundUrl'); // Clear if not present
     }
+    localStorage.setItem('hasRemovedBackground', design.hasRemovedBackground ? 'true' : 'false');
+
+    // --- Set the intent flag ---
+    localStorage.setItem('designIntent', 'load');
+    console.log("RecentDesignsGrid: Set designIntent to 'load'");
 
     // Navigate to the generic design page
     router.push('/design');

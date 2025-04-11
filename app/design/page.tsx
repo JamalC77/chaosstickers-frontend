@@ -42,86 +42,89 @@ export default function DesignPage() {
     else { const newUserId = crypto.randomUUID(); localStorage.setItem('userId', newUserId); setUserId(newUserId); }
   }, []);
 
-  // --- Load initial design details or generate image ---
+  // --- Load initial design details OR trigger generation based on intent ---
   useEffect(() => {
-    console.log('DesignPage: useEffect loading data/generating...');
+    console.log('DesignPage: Mount useEffect running...');
     setLoading(true);
-    setError(null); // Clear previous errors
+    setError(null);
+
+    const intent = localStorage.getItem('designIntent');
+    localStorage.removeItem('designIntent'); // Clear the flag
+    console.log(`DesignPage: Read intent: '${intent}'`);
 
     const controller = new AbortController();
     const storedPrompt = localStorage.getItem('userPrompt');
 
     if (!storedPrompt) {
-      console.error("DesignPage: No prompt found in localStorage.");
+      console.error("DesignPage: No prompt found.");
       setError("No prompt found. Please start again.");
       setLoading(false);
-      return; // Stop if no prompt
+      return;
     }
 
     setPrompt(storedPrompt);
     setEditablePrompt(storedPrompt);
     console.log(`DesignPage: Using prompt: "${storedPrompt}"`);
 
-    // --- Check localStorage for existing image details --- 
-    const storedImageUrl = localStorage.getItem('generatedImageUrl');
-    const storedIdString = localStorage.getItem('generatedImageId'); // <<< Key check
-    const storedNoBgUrl = localStorage.getItem('noBackgroundUrl');
-    const storedHasRemovedBg = localStorage.getItem('hasRemovedBackground') === 'true';
+    // --- Decision Logic Based on Intent --- 
 
-    console.log("DesignPage - Raw localStorage check:", { storedImageUrl, storedIdString, storedNoBgUrl, storedHasRemovedBg });
+    // **Scenario 1: Explicit Intent to Load (or default if no intent specified)**
+    if (intent === 'load' || !intent) {
+        console.log("DesignPage: Intent is 'load' or missing. Attempting load...");
+        const storedImageUrl = localStorage.getItem('generatedImageUrl');
+        const storedIdString = localStorage.getItem('generatedImageId');
+        const storedNoBgUrl = localStorage.getItem('noBackgroundUrl');
+        const storedHasRemovedBg = localStorage.getItem('hasRemovedBackground') === 'true';
+        console.log("DesignPage(Load) - localStorage check:", { storedImageUrl, storedIdString });
 
-    // --- SCENARIO 1: Load Existing Image (if ID and URL exist) --- 
-    if (storedIdString && storedImageUrl) {
-        console.log("DesignPage: Found stored ID and URL. Attempting to load existing design.");
-        const idNum = parseInt(storedIdString, 10);
-        
-        if (!isNaN(idNum)) {
-            // Successfully parsed numeric ID
-            console.log(`DesignPage: Successfully parsed numeric ID: ${idNum}. Loading into state.`);
-            setImageUrl(storedHasRemovedBg && storedNoBgUrl ? storedNoBgUrl : storedImageUrl);
-            setDesignDetails({
-                id: idNum, // <<< Set the numeric ID here
-                originalUrl: storedImageUrl,
-                noBgUrl: storedNoBgUrl,
-                hasRemovedBg: storedHasRemovedBg
-            });
-            setLoading(false); // Done loading
+        if (storedIdString && storedImageUrl) {
+            const idNum = parseInt(storedIdString, 10);
+            if (!isNaN(idNum)) {
+                console.log(`DesignPage(Load): Loading existing design ID ${idNum}.`);
+                setImageUrl(storedHasRemovedBg && storedNoBgUrl ? storedNoBgUrl : storedImageUrl);
+                setDesignDetails({
+                    id: idNum,
+                    originalUrl: storedImageUrl,
+                    noBgUrl: storedNoBgUrl,
+                    hasRemovedBg: storedHasRemovedBg
+                });
+                setLoading(false);
+            } else {
+                console.error(`DesignPage(Load): FAILED to parse storedIdString ('${storedIdString}')`);
+                setError('Invalid design ID found. Please select again.');
+                localStorage.removeItem('generatedImageId');
+                localStorage.removeItem('generatedImageUrl');
+                setLoading(false);
+            }
         } else {
-            // Found ID string, but couldn't parse it - Data corruption?
-            console.error(`DesignPage: Found storedIdString ('${storedIdString}') but FAILED to parse as number. Cannot load.`);
-            setError('Invalid design ID found in storage. Please select the design again.');
-            localStorage.removeItem('generatedImageId'); // Clear bad data
-            localStorage.removeItem('generatedImageUrl'); // Clear potentially related bad data
+            console.error("DesignPage(Load): Required ID or URL missing from localStorage.");
+            setError("Failed to load design details. Please select again.");
             setLoading(false);
         }
     } 
-    // --- SCENARIO 2: Generate New Image (if ID/URL missing, but prompt exists and userId is available) ---
-    else if (userId) {
-        // This condition means we have a prompt, but no valid stored image/ID combo.
-        // This is the expected path when coming from the home page prompt input.
-        console.log("DesignPage: No valid stored image/ID found. Generating NEW image based on prompt.");
-        generateImage(storedPrompt, controller.signal, true); // Force regenerate flag TRUE ensures clearing old state/storage
+    // **Scenario 2: Explicit Intent to Generate**
+    else if (intent === 'generate') { 
+        console.log("DesignPage: Intent is 'generate'. Triggering NEW image generation.");
+        // We call generateImage immediately. 
+        // generateImage itself will handle waiting for userId if needed.
+        // Pass forceRegenerate=true to ensure clearing of any potentially stale state/storage.
+        generateImage(storedPrompt, controller.signal, true);
+        // Note: setLoading(false) happens inside generateImage's finally block
     } 
-    // --- SCENARIO 3: Waiting for UserID (before generating) --- 
-    else if (!userId) {
-        console.log("DesignPage: Waiting for userId before generating new image.");
-        // Don't set loading false yet, wait for userId effect to re-trigger
-        // setLoading(false); // Keep loading true
-    }
-    // --- SCENARIO 4: Fallback (Should not happen) --- 
+    // **Scenario 3: Unknown Intent (Error Case)**
     else {
-        console.error("DesignPage: Unhandled state in useEffect. Cannot load or generate.");
-        setError("An unexpected error occurred loading the design.");
+        console.error(`DesignPage: Unknown designIntent value: '${intent}'`);
+        setError("Invalid page state. Please start again.");
         setLoading(false);
     }
 
-    // Cleanup function for aborting fetch if component unmounts
+    // Cleanup function
     return () => {
-      console.log('DesignPage: Cleanup useEffect.');
+      console.log('DesignPage: Cleanup mount useEffect.');
       controller.abort();
     };
-    // Re-run IF userId becomes available (for the generation case)
-  }, [userId]); // *** REMOVED router dependency, not needed here ***
+    // Run only ONCE on mount
+  }, []); // <<< EMPHASIS: Empty dependency array!
 
   // --- Generate Image Function ---
   const generateImage = async (
@@ -130,42 +133,57 @@ export default function DesignPage() {
     forceRegenerate: boolean = false,
     referenceUrl?: string
   ) => {
-    // Don't regenerate if we're already loading and not forcing regeneration
-    // Allow regeneration even if loading if forceRegenerate is true
+    // Allow generation call even if loading=true when forceRegenerate is set
     if (loading && !forceRegenerate) {
-         console.log("generateImage: Already loading and not forcing regenerate, skipping.");
+         console.log("generateImage: Already loading/generating and not forcing, skipping.");
          return;
     }
 
-    console.log('generateImage: Starting generation...', { promptText, forceRegenerate, referenceUrl, userId });
+    console.log('generateImage: Starting... ', { promptText, forceRegenerate, referenceUrl, userId });
     setLoading(true);
-    setError('');
-    // Clear previous design details when generating anew
+    setError(''); // Clear previous errors
+    
+    // If forcing regenerate, clear old details immediately
     if (forceRegenerate) {
         setDesignDetails({ id: null, originalUrl: null, noBgUrl: null, hasRemovedBg: false });
-        setImageUrl(null); // Clear visual
-        localStorage.removeItem('generatedImageId'); // Ensure old ID is gone
+        setImageUrl(null); 
+        localStorage.removeItem('generatedImageId'); 
         localStorage.removeItem('generatedImageUrl');
         localStorage.removeItem('noBackgroundUrl');
         localStorage.removeItem('hasRemovedBackground');
-        console.log("generateImage: Cleared previous image details due to forceRegenerate.");
+        console.log("generateImage: Cleared previous image details (forceRegenerate=true).");
     }
+
+    // --- Check for userId --- 
+    // Wait slightly if userId isn't set yet, but don't block indefinitely
+    let currentUserId = userId;
+    if (!currentUserId) {
+        console.warn("generateImage: userId not available yet. Will use value from localStorage directly if needed.");
+        currentUserId = localStorage.getItem('userId'); // Try reading directly as fallback
+        if (!currentUserId) {
+             console.error("generateImage: CRITICAL - userId is null even in localStorage. Cannot generate.");
+             setError("Cannot generate image: User identifier is missing.");
+             setLoading(false);
+             return; // Stop if no user ID at all
+        }
+    }
+    // --- End userId Check --- 
 
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_API_URL || 'http://localhost:3001'}/api/generate-image`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }, // Ensure no caching
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
         body: JSON.stringify({
           prompt: promptText,
-          userId: userId, // Include userId
-          regenerate: forceRegenerate, // Tell backend if it's a fresh request vs modification
+          userId: currentUserId, // Use the obtained userId
+          regenerate: forceRegenerate,
           referenceUrl: referenceUrl,
         }),
-        signal, // Allow aborting
-        cache: 'no-store' // Next.js fetch cache control
+        signal,
+        cache: 'no-store'
       });
 
-      const responseBody = await response.json(); // Read body once
+      const responseBody = await response.json(); 
 
       if (!response.ok) {
         console.error("generateImage API error:", response.status, responseBody);
@@ -175,27 +193,41 @@ export default function DesignPage() {
       console.log('generateImage: API success. Response data:', responseBody);
       setImageUrl(responseBody.imageUrl);
 
-      // --- CRITICAL: Save the NUMERIC ID to localStorage ---
-      if (responseBody.id && typeof responseBody.id === 'number') {
-        const numericId = responseBody.id;
-        console.log(`generateImage: Received NUMERIC ID: ${numericId}`);
-        setDesignDetails(prev => ({
-            ...prev, // Keep potential bg info if it was somehow set before id
-            id: numericId, // <<< Set numeric ID in state
-            originalUrl: responseBody.imageUrl // Set original URL here
-        }));
-        localStorage.setItem('generatedImageId', numericId.toString()); // <<< Save as string
-        localStorage.setItem('generatedImageUrl', responseBody.imageUrl);
-        // Reset background status for new image
-        localStorage.removeItem('noBackgroundUrl');
-        localStorage.setItem('hasRemovedBackground', 'false');
-        console.log(`generateImage: Saved numeric ID ${numericId} to localStorage as string. State updated.`);
+      // --- CRITICAL: Save the NUMERIC ID (parsing from string if necessary) --- 
+      let numericId: number | null = null;
+      if (responseBody.id) {
+          if (typeof responseBody.id === 'number') {
+              numericId = responseBody.id;
+              console.log(`generateImage: Received NUMERIC ID directly: ${numericId}`);
+          } else if (typeof responseBody.id === 'string') {
+              const parsed = parseInt(responseBody.id, 10);
+              if (!isNaN(parsed)) {
+                  numericId = parsed;
+                  console.log(`generateImage: Parsed NUMERIC ID from string '${responseBody.id}': ${numericId}`);
+              } else {
+                   console.error(`generateImage: FAILED to parse ID string '${responseBody.id}' from backend.`);
+              }
+          } else {
+               console.error(`generateImage: Received ID of unexpected type: ${typeof responseBody.id}`);
+          }
+      }
+
+      if (numericId !== null) {
+          setDesignDetails(prev => ({
+              ...prev, 
+              id: numericId, // <<< Set numeric ID in state
+              originalUrl: responseBody.imageUrl // Set original URL
+          }));
+          localStorage.setItem('generatedImageId', numericId.toString()); // <<< Save as string
+          localStorage.setItem('generatedImageUrl', responseBody.imageUrl);
+          localStorage.removeItem('noBackgroundUrl');
+          localStorage.setItem('hasRemovedBackground', 'false');
+          console.log(`generateImage: Saved numeric ID ${numericId} to localStorage & state.`);
       } else {
-        console.error('generateImage: FAILED to receive a valid NUMERIC ID from backend. Received:', responseBody.id);
-        setError("Failed to get a valid ID for the generated image.");
-        // Clear potentially invalid stored ID if we received something else
-        localStorage.removeItem('generatedImageId');
-        setDesignDetails(prev => ({ ...prev, id: null })); // Clear ID in state
+          console.error('generateImage: FAILED to get a valid NUMERIC ID from backend response.');
+          setError("Failed to get a valid ID for the generated image. Cannot add to cart later.");
+          localStorage.removeItem('generatedImageId');
+          setDesignDetails(prev => ({ ...prev, id: null, originalUrl: responseBody.imageUrl })); // Store URL but clear ID
       }
       // --- End ID Handling ---
 
@@ -204,7 +236,7 @@ export default function DesignPage() {
       if (error.name !== 'AbortError') {
         console.error('generateImage: Exception caught:', err);
         setError(`Image generation failed: ${ (err as Error).message || 'Unknown error'}`);
-        setImageUrl('https://placehold.co/600x600/gray/white?text=Error'); // Placeholder on error
+        setImageUrl('https://placehold.co/600x600/gray/white?text=Error'); 
       } else {
         console.log("generateImage: Aborted.");
       }
@@ -377,7 +409,7 @@ export default function DesignPage() {
                 {error}
                  {/* Optionally add a retry button here if the error is related to loading/generation */} 
                  {error.includes("generation failed") && (
-                    <button onClick={handleRegenerate} className="mt-2 underline">Try generating again?</button>
+                    <button onClick={handleRegenerate} className="mt-2 underline"> Try generating again?</button>
                  )}
             </div>
           )}
@@ -437,7 +469,7 @@ export default function DesignPage() {
             {/* Action Buttons */} 
             <div className="flex flex-col md:flex-row gap-4 pt-6 border-t border-purple-100">
                 <button onClick={() => router.back()}
-                    className="w-full art-button py-3 px-6 rounded-lg font-semibold transition-all duration-300"> Back </button>
+                    className="w-full art-button py-3 px-6 rounded-lg text-white font-semibold transition-all duration-300"> Back </button>
                 <button onClick={handleProceedToCheckout}
                     className="w-full art-button py-3 px-6 rounded-lg text-white font-bold focus:outline-none transition-all duration-300 opacity-100 disabled:opacity-50"
                     // --- Disable ONLY when loading --- 

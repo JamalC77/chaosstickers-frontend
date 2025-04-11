@@ -107,10 +107,18 @@ export default function Home() {
       console.log('Storing prompt in localStorage:', prompt);
       localStorage.setItem('userPrompt', prompt);
       
+      // --- Clear old image data and set intent --- 
       localStorage.removeItem('generatedImageUrl');
+      localStorage.removeItem('generatedImageId'); 
+      localStorage.removeItem('noBackgroundUrl');
+      localStorage.removeItem('hasRemovedBackground');
+      localStorage.setItem('designIntent', 'generate'); // <<< SET INTENT TO GENERATE
+      console.log("Home page: Cleared old image data and set designIntent to 'generate'");
+      // --- End clearing/setting --- 
       
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay (optional)
       
+      console.log("Home page: Navigating to /design");
       router.push('/design');
     } catch (error) {
       console.error('Error submitting prompt:', error);
