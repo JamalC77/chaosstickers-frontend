@@ -193,23 +193,18 @@ export default function DesignPage() {
       console.log('generateImage: API success. Response data:', responseBody);
       setImageUrl(responseBody.imageUrl);
 
-      // --- CRITICAL: Save the NUMERIC ID (parsing from string if necessary) --- 
+      // --- CRITICAL: Save the NUMERIC ID (parsing concisely) --- 
       let numericId: number | null = null;
-      if (responseBody.id) {
-          if (typeof responseBody.id === 'number') {
-              numericId = responseBody.id;
-              console.log(`generateImage: Received NUMERIC ID directly: ${numericId}`);
-          } else if (typeof responseBody.id === 'string') {
-              const parsed = parseInt(responseBody.id, 10);
-              if (!isNaN(parsed)) {
-                  numericId = parsed;
-                  console.log(`generateImage: Parsed NUMERIC ID from string '${responseBody.id}': ${numericId}`);
-              } else {
-                   console.error(`generateImage: FAILED to parse ID string '${responseBody.id}' from backend.`);
-              }
+      if (responseBody.id != null) { // Check for null or undefined
+          const potentialNum = +responseBody.id; // Attempt conversion using unary plus
+          if (!isNaN(potentialNum)) { // Check if conversion was successful (not NaN)
+              numericId = potentialNum;
+              console.log(`generateImage: Converted/Validated NUMERIC ID: ${numericId} (Original type: ${typeof responseBody.id})`);
           } else {
-               console.error(`generateImage: Received ID of unexpected type: ${typeof responseBody.id}`);
+               console.error(`generateImage: FAILED to convert backend ID ('${responseBody.id}') to a number.`);
           }
+      } else {
+          console.error(`generateImage: Received null or undefined ID from backend.`);
       }
 
       if (numericId !== null) {
