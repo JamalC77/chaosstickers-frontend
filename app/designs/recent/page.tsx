@@ -237,7 +237,6 @@ const RecentDesignsGrid = () => {
     } else {
         localStorage.removeItem('noBackgroundUrl'); // Clear if not present
     }
-    localStorage.setItem('hasRemovedBackground', design.hasRemovedBackground ? 'true' : 'false');
 
     // --- Set the intent flag ---
     localStorage.setItem('designIntent', 'load');
