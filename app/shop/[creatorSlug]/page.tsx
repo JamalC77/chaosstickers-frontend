@@ -35,7 +35,7 @@ export default function CreatorStorePage() {
   useEffect(() => {
     const loadCreator = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/creators/${params.creatorSlug}`);
+        const response = await fetch(`${API_BASE}/api/creators/${params?.creatorSlug}`);
         if (response.ok) {
           const data = await response.json();
           setCreator(data.creator);
@@ -48,7 +48,7 @@ export default function CreatorStorePage() {
     };
 
     loadCreator();
-  }, [params.creatorSlug]);
+  }, [params?.creatorSlug]);
 
   if (isLoading) {
     return (

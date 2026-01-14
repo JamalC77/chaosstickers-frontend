@@ -61,7 +61,7 @@ export default function DropPage() {
     const loadDrop = async () => {
       try {
         const response = await fetch(
-          `${API_BASE}/api/shop/drops/${params.creatorSlug}/${params.dropSlug}`
+          `${API_BASE}/api/shop/drops/${params?.creatorSlug}/${params?.dropSlug}`
         );
         if (response.ok) {
           const data = await response.json();
@@ -80,7 +80,7 @@ export default function DropPage() {
     };
 
     loadDrop();
-  }, [params.creatorSlug, params.dropSlug]);
+  }, [params?.creatorSlug, params?.dropSlug]);
 
   const toggleDesign = (imageId: number) => {
     if (!selectedPack || selectedPack.type !== 'BUILD_A_PACK') return;
@@ -110,11 +110,11 @@ export default function DropPage() {
       dropId: drop.id,
       packId: selectedPack.id,
       selectedDesignIds: selectedPack.type === 'BUILD_A_PACK' ? selectedDesigns : [],
-      creatorSlug: params.creatorSlug,
-      dropSlug: params.dropSlug,
+      creatorSlug: params?.creatorSlug,
+      dropSlug: params?.dropSlug,
     }));
 
-    router.push(`/shop/${params.creatorSlug}/${params.dropSlug}/checkout`);
+    router.push(`/shop/${params?.creatorSlug}/${params?.dropSlug}/checkout`);
   };
 
   if (isLoading) {
