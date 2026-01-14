@@ -51,7 +51,7 @@ export default function PackCheckoutPage() {
   useEffect(() => {
     const data = localStorage.getItem('packCheckout');
     if (!data) {
-      router.push(`/shop/${params.creatorSlug}/${params.dropSlug}`);
+      router.push(`/shop/${params?.creatorSlug}/${params?.dropSlug}`);
       return;
     }
 
@@ -131,7 +131,7 @@ export default function PackCheckoutPage() {
     <main className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Link
-          href={`/shop/${params.creatorSlug}/${params.dropSlug}`}
+          href={`/shop/${params?.creatorSlug}/${params?.dropSlug}`}
           className="text-purple-600 hover:text-purple-700 mb-6 inline-block"
         >
           ← Back to drop
