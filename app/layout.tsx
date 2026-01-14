@@ -7,8 +7,8 @@ import Footer from "./components/Footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "ChaosStickers - Custom AI-Generated Stickers",
-  description: "Create and order custom AI-generated stickers in seconds!",
+  title: "Creator Sticker Drops - Launch Collectible Sticker Packs",
+  description: "The platform for creator sticker drops. Launch collectible sticker packs in under 30 minutes. Your audience buys packs. We handle fulfillment.",
 };
 
 export default function RootLayout({
