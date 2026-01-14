@@ -106,7 +106,7 @@ export default function Navigation() {
               </Link>
             </li>
             <li>
-              <Link href="/design" className="text-gray-600 hover:text-blue-600 transition-colors">
+              <Link href="/#make-sticker" className="text-gray-600 hover:text-blue-600 transition-colors">
                 Make a Sticker
               </Link>
             </li>
@@ -185,7 +185,7 @@ export default function Navigation() {
               </Link>
             </li>
             <li>
-              <Link href="/design" className="text-gray-600 hover:text-blue-600 transition-colors" onClick={handleMobileLinkClick}>
+              <Link href="/#make-sticker" className="text-gray-600 hover:text-blue-600 transition-colors" onClick={handleMobileLinkClick}>
                 Make a Sticker
               </Link>
             </li>
