@@ -12,8 +12,8 @@ function VerifyContent() {
 
   useEffect(() => {
     const verify = async () => {
-      const email = searchParams.get('email');
-      const token = searchParams.get('token');
+      const email = searchParams?.get('email');
+      const token = searchParams?.get('token');
 
       if (!email || !token) {
         setStatus('error');
